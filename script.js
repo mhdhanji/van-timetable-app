@@ -379,10 +379,10 @@ function checkDepartures() {
         let spokenMessage;
         if (activeDepartedVans.length === 1) {
             const van = activeDepartedVans[0];
-            spokenMessage = `Your attention please. The van to ${van.location} has now departed at ${currentTime}`;
+            spokenMessage = `  Your attention please. The van to ${van.location} has now departed at ${currentTime}`;
         } else {
             const locations = activeDepartedVans.map(van => van.location).join(' and ');
-            spokenMessage = `Your attention please. Multiple vans have now departed at ${currentTime}. Vans to ${locations} have left`;
+            spokenMessage = `  Your attention please. Multiple vans have now departed at ${currentTime}. Vans to ${locations} have left`;
         }
         
         speakDepartureMessage(spokenMessage);
@@ -485,7 +485,7 @@ function checkUpcomingDepartures() {
             mainMessage.textContent = '5 MINUTES TO DEPARTURE';
             detailMessage.textContent = `${activeUpcomingDepartures[0].location} departing at ${activeUpcomingDepartures[0].time}`;
             
-            spokenMessage = `Your attention please. The van to ${activeUpcomingDepartures[0].location} will be departing in 5 minutes at ${activeUpcomingDepartures[0].time}`;
+            spokenMessage = `  Your attention please. The van to ${activeUpcomingDepartures[0].location} will be departing in 5 minutes at ${activeUpcomingDepartures[0].time}`;
         } else {
             mainMessage.textContent = '5 MINUTES TO MULTIPLE DEPARTURES';
             detailMessage.textContent = activeUpcomingDepartures
@@ -496,7 +496,7 @@ function checkUpcomingDepartures() {
                 .map(dep => dep.location)
                 .join(' and ');
             
-            spokenMessage = `Your attention please. Multiple vans will be departing in 5 minutes. Vans to ${locationList} will depart at ${activeUpcomingDepartures[0].time}`;
+            spokenMessage = `  Your attention please. Multiple vans will be departing in 5 minutes. Vans to ${locationList} will depart at ${activeUpcomingDepartures[0].time}`;
         }
         
         speakWarningMessage(spokenMessage);
