@@ -1,0 +1,150 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MAP VAN TIMES</title>
+        <link rel="stylesheet" href="styles.css">
+        <!-- Add Firebase directly -->
+        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAP VAN TIMES</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <div class="title-section">
+            <div class="controls-row">
+                <div class="left-controls">
+                    <select id="table-select">
+                        <option value="maskew">MASKEW AVENUE</option>
+                        <option value="market">MARKET DEEPING</option>
+                    </select>
+                    <button id="refresh-button">Refresh Data</button>
+                    <div class="key">
+                        <span class="key-item time-thirty">30 MIN</span>
+                        <span class="key-item time-fifteen">15 MIN</span>
+                        <span class="key-item time-five">5 MIN</span>
+                        <span class="key-item past">DEPARTED</span>
+                    </div>
+                </div>
+                <div class="clock-container">
+                    <div id="clock"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="departure-message" class="message-overlay">
+        <div class="message-content">
+            <div class="main-message"></div>
+            <div class="detail-message"></div>
+        </div>
+    </div>
+
+    <div class="loading-overlay">
+        <div class="spinner"></div>
+        <div>Loading...</div>
+    </div>
+
+    <div id="error-message" class="error-message"></div>
+
+    <div class="content">
+        <div id="maskew-section" class="timetable-section">
+            <h2 class="subtitle">OUT OF TOWN RUNS FOR MONDAY - FRIDAY</h2>
+            <div class="timestamp">Last Updated: <span id="update-time"></span></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ST IVES</th>
+                        <th>HUNTINGDON</th>
+                        <th>WHITTLESEY & TURVES</th>
+                        <th>CHATTERIS</th>
+                        <th>RAMSEY</th>
+                        <th>SAWTRY</th>
+                        <th>OUNDLE & NASSINGTON</th>
+                        <th>IBT</th>
+                    </tr>
+                </thead>
+                <tbody id="maskew-body"></tbody>
+            </table>
+        </div>
+
+        <div id="market-section" class="timetable-section">
+            <h2 class="subtitle">RUNS FOR MONDAY - FRIDAY</h2>
+            <div class="timestamp">Last Updated: <span id="update-time"></span></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>BOURNE</th>
+                        <th>BOURNE NORTH</th>
+                        <th>HOLBEACH</th>
+                        <th>SPALDING/PINCHBECK</th>
+                        <th>BOSTON</th>
+                        <th>OAKHAM</th>
+                        <th>UPPINGHAM</th>
+                        <th>MARCH WISBECH</th>
+                        <th>IBT</th>
+                    </tr>
+                </thead>
+                <tbody id="market-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBkkSet1OXBhkJhdcdphWG_3yFUJFWrujI",
+            authDomain: "map-van-times.firebaseapp.com",
+            projectId: "map-van-times",
+            storageBucket: "map-van-times.firebasestorage.app",
+            messagingSenderId: "967630671909",
+            appId: "1:967630671909:web:8985ce0e4f1018f7d7efcc",
+            measurementId: "G-JBS29H6ZZ5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Expose Firebase functions globally
+        window.firebaseApi = {
+            getMaskewData: async () => {
+                try {
+                    const querySnapshot = await db.collection('maskew_avenue').get();
+                    return querySnapshot.docs.map(doc => doc.data());
+                } catch (error) {
+                    console.error("Error fetching Maskew data:", error);
+                    throw error;
+                }
+            },
+
+            getMarketData: async () => {
+                try {
+                    const querySnapshot = await db.collection('market_deeping').get();
+                    return querySnapshot.docs.map(doc => doc.data());
+                } catch (error) {
+                    console.error("Error fetching Market data:", error);
+                    throw error;
+                }
+            },
+
+            getIBTData: async () => {
+                try {
+                    const querySnapshot = await db.collection('ibt_times').get();
+                    return querySnapshot.docs.map(doc => doc.data())[0];
+                } catch (error) {
+                    console.error("Error fetching IBT data:", error);
+                    throw error;
+                }
+            }
+        };
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

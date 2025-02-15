@@ -1,0 +1,51 @@
+{
+  "name": "van-timetable-app",
+  "version": "1.0.0",
+  "description": "MAP Van Timetable Application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --windows",
+    "build:mac": "electron-builder --mac"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "firebase": "^10.7.1"
+  },
+  "devDependencies": {
+    "electron": "^34.2.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.vantimetable.app",
+    "productName": "Van Timetable",
+    "asar": false,
+    "files": [
+      "**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "publisherName": "MAP"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Van Timetable"
+    }
+  }
+}
