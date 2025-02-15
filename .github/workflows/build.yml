@@ -1,9 +1,12 @@
+# Rebuild with new token
 name: Build
 on: [push]
 
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
     - uses: actions/checkout@v4
     - name: Use Node.js
