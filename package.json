@@ -1,6 +1,6 @@
 {
   "name": "van-timetable-app",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "MAP Van Timetable Application",
   "main": "main.js",
   "scripts": {
@@ -37,15 +37,18 @@
         }
       ],
       "artifactName": "${productName}-Setup-${version}.${ext}",
-      "publisherName": "MAP"
+      "publisherName": "MAP",
+      "icon": "icon.ico"
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
+      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Van Timetable"
+      "shortcutName": "Van Timetable",
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico"
     }
   }
 }

@@ -16,21 +16,25 @@ function createWindow() {
         }
     });
 
-    // Prevent window from being garbage collected
+    // Handle close button
     mainWindow.on('close', function (event) {
         if (!app.isQuitting) {
             event.preventDefault();
             mainWindow.hide();
+            // Optional: Show notification that app is minimized to tray
+            new Notification({
+                title: 'Van Timetable',
+                body: 'Application is still running in the system tray'
+            }).show();
         }
         return false;
     });
 
-    // Load the index.html file
     mainWindow.loadFile('index.html');
 }
 
 function createTray() {
-    tray = new Tray(path.join(__dirname, 'icon.ico')); // Make sure you have an icon.ico file
+    tray = new Tray(path.join(__dirname, 'icon.ico'));
     const contextMenu = Menu.buildFromTemplate([
         {
             label: 'Show App',
@@ -39,7 +43,7 @@ function createTray() {
             }
         },
         {
-            label: 'Quit',
+            label: 'Exit',
             click: function () {
                 app.isQuitting = true;
                 app.quit();
