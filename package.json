@@ -1,6 +1,6 @@
 {
   "name": "van-timetable-app",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "MAP Van Timetable Application",
   "main": "main.js",
   "repository": {
@@ -30,7 +30,26 @@
     "productName": "Van Timetable",
     "asar": true,
     "files": [
-      "**/*"
+      "**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "main.js",
+      "preload.js",
+      "index.html",
+      "styles.css",
+      "script.js",
+      "icon.png"
+    ],
+    "extraResources": [
+      {
+        "from": "preload.js",
+        "to": "app/preload.js"
+      }
     ],
     "directories": {
       "output": "dist"

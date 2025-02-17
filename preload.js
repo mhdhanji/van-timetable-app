@@ -1,28 +1,22 @@
-const { contextBridge } = require('electron');
-
-// Expose a minimal API to the renderer process
-contextBridge.exposeInMainWorld('electronAPI', {
-    isElectron: true
-});
-
-// preload.js
 const { contextBridge, ipcRenderer } = require('electron');
 const { app } = require('@electron/remote');
 
+// Expose all APIs in a single contextBridge call
 contextBridge.exposeInMainWorld('electron', {
-    getVersion: () => app.getVersion()
-});
+    // App info
+    getVersion: () => app.getVersion(),
+    isElectron: true,
+    
+    // Version info
+    versions: {
+        node: () => process.versions.node,
+        chrome: () => process.versions.chrome,
+        electron: () => process.versions.electron
+    },
 
-// You can also expose any other safe APIs you might need
-contextBridge.exposeInMainWorld('versions', {
-    node: () => process.versions.node,
-    chrome: () => process.versions.chrome,
-    electron: () => process.versions.electron
-});
-
-// If you need to expose any IPC functions in the future, you can add them here
-contextBridge.exposeInMainWorld('ipcAPI', {
-    // Example:
-    // send: (channel, data) => ipcRenderer.send(channel, data),
-    // receive: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args))
+    // IPC functions (commented out but ready to use)
+    // ipc: {
+    //     send: (channel, data) => ipcRenderer.send(channel, data),
+    //     receive: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args))
+    // }
 });

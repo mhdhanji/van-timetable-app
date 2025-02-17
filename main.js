@@ -2,7 +2,7 @@ const { app, BrowserWindow, Tray, Menu, Notification, dialog } = require('electr
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
-require('@electron/remote/main').initialize(); // Add this line
+require('@electron/remote/main').initialize();
 
 let mainWindow = null;
 let tray = null;
@@ -59,12 +59,14 @@ autoUpdater.on('update-downloaded', (info) => {
     dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Update Ready',
-        message: 'Update downloaded. The application will close and install the update.',
-        buttons: ['Install Now']
+        message: 'Update downloaded. The application will restart to install the update.',
+        buttons: ['Restart Now']
     }).then(() => {
-        // Force close everything in the correct order
         try {
             log.info('Preparing to install update...');
+            
+            // Set a flag to indicate we're updating
+            app.isUpdating = true;
             
             // Remove all event listeners
             if (mainWindow) {
@@ -89,17 +91,27 @@ autoUpdater.on('update-downloaded', (info) => {
             // Set quitting flag
             app.isQuitting = true;
 
-            // Force quit any remaining app instances
-            app.exit(0);
+            // Force all windows to close
+            BrowserWindow.getAllWindows().forEach(window => {
+                window.destroy();
+            });
 
             // Small delay before installing
             setTimeout(() => {
                 log.info('Installing update...');
-                autoUpdater.quitAndInstall(true, true);
+                // Force application restart after update
+                autoUpdater.quitAndInstall(false, true);
             }, 1000);
 
         } catch (err) {
             log.error('Error during update installation:', err);
+            // If error occurs, try force quit and install
+            try {
+                autoUpdater.quitAndInstall(false, true);
+            } catch (innerErr) {
+                log.error('Final attempt to install update failed:', innerErr);
+                app.quit();
+            }
         }
     });
 });
@@ -123,10 +135,16 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true,
             webSecurity: false,
+            enableRemoteModule: true,
             preload: path.join(__dirname, 'preload.js')
         }
     });
+
+    // Enable remote module for this window
     require('@electron/remote/main').enable(mainWindow.webContents);
+    
+    // Log preload script path
+    log.info('Preload script path:', path.join(__dirname, 'preload.js'));
     
     // Handle close button
     mainWindow.on('close', function (event) {
@@ -134,7 +152,6 @@ function createWindow() {
             event.preventDefault();
             mainWindow.hide();
             
-            // Show system notification properly
             if (Notification.isSupported()) {
                 new Notification({
                     title: 'Van Timetable',
@@ -148,7 +165,16 @@ function createWindow() {
 
     mainWindow.loadFile('index.html');
     
-    // Check for updates with error catching
+    // Add debugging events
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        log.error('Page failed to load:', errorDescription);
+    });
+
+    mainWindow.webContents.on('preload-error', (event, preloadPath, error) => {
+        log.error('Preload script error:', preloadPath, error);
+    });
+
+    // Check for updates
     log.info('Checking for updates...');
     autoUpdater.checkForUpdates().catch(err => {
         log.error('Error checking for updates:', err);
@@ -158,6 +184,11 @@ function createWindow() {
 function createTray() {
     tray = new Tray(path.join(__dirname, 'icon.png'));
     const contextMenu = Menu.buildFromTemplate([
+        {
+            label: `Van Timetable v${app.getVersion()}`,
+            enabled: false
+        },
+        { type: 'separator' },
         {
             label: 'Show App',
             click: function () {
@@ -173,36 +204,27 @@ function createTray() {
                 });
             }
         },
+        { type: 'separator' },
         {
             label: 'Exit',
             click: function () {
                 try {
                     log.info('Exiting application...');
-                    
-                    // Remove all event listeners
                     if (mainWindow) {
                         mainWindow.removeAllListeners('close');
                     }
-                    
-                    // Destroy tray first
                     if (tray) {
                         log.info('Destroying tray...');
                         tray.destroy();
                         tray = null;
                     }
-
-                    // Close main window
                     if (mainWindow) {
                         log.info('Closing main window...');
                         mainWindow.hide();
                         mainWindow.destroy();
                         mainWindow = null;
                     }
-
-                    // Set quitting flag
                     app.isQuitting = true;
-
-                    // Force quit
                     app.exit(0);
                 } catch (err) {
                     log.error('Error during exit:', err);
@@ -211,7 +233,7 @@ function createTray() {
         }
     ]);
 
-    tray.setToolTip('Van Timetable App');
+    tray.setToolTip(`Van Timetable v${app.getVersion()}`);
     tray.setContextMenu(contextMenu);
 
     tray.on('click', () => {
@@ -226,7 +248,6 @@ app.whenReady().then(() => {
     createWindow();
     createTray();
 
-    // Check for updates when app starts
     autoUpdater.checkForUpdates().catch(err => {
         log.error('Initial update check failed:', err);
     });
@@ -241,5 +262,25 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
+    }
+});
+
+// Add these new event handlers
+app.on('before-quit', () => {
+    log.info('Application is quitting...');
+    app.isQuitting = true;
+});
+
+app.on('will-quit', () => {
+    log.info('Application will quit...');
+    if (app.isUpdating) {
+        log.info('Application is updating, preparing for restart...');
+    }
+});
+
+app.on('quit', () => {
+    log.info('Application has quit.');
+    if (app.isUpdating) {
+        log.info('Application quit due to update, should restart automatically.');
     }
 });
