@@ -30,6 +30,19 @@ body {
     gap: 20px;
 }
 
+.version-display {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 12px;
+    color: #666;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+    z-index: 1000;
+}
+
 #table-select {
     padding: 8px 16px;
     font-size: 16px;

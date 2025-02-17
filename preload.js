@@ -5,6 +5,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     isElectron: true
 });
 
+// preload.js
+const { contextBridge, ipcRenderer } = require('electron');
+const { app } = require('@electron/remote');
+
+contextBridge.exposeInMainWorld('electron', {
+    getVersion: () => app.getVersion()
+});
+
 // You can also expose any other safe APIs you might need
 contextBridge.exposeInMainWorld('versions', {
     node: () => process.versions.node,

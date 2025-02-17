@@ -2,6 +2,7 @@ const { app, BrowserWindow, Tray, Menu, Notification, dialog } = require('electr
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
+require('@electron/remote/main').initialize(); // Add this line
 
 let mainWindow = null;
 let tray = null;
@@ -61,12 +62,45 @@ autoUpdater.on('update-downloaded', (info) => {
         message: 'Update downloaded. The application will close and install the update.',
         buttons: ['Install Now']
     }).then(() => {
-        // Force close the app properly
-        app.isQuitting = true;  // Set flag to true
-        tray.destroy();         // Remove tray icon
-        mainWindow.destroy();   // Force close main window
-        app.quit();            // Quit the app
-        autoUpdater.quitAndInstall(false, true);  // Install update
+        // Force close everything in the correct order
+        try {
+            log.info('Preparing to install update...');
+            
+            // Remove all event listeners
+            if (mainWindow) {
+                mainWindow.removeAllListeners('close');
+            }
+            
+            // Destroy tray first
+            if (tray) {
+                log.info('Destroying tray...');
+                tray.destroy();
+                tray = null;
+            }
+
+            // Close main window
+            if (mainWindow) {
+                log.info('Closing main window...');
+                mainWindow.hide();
+                mainWindow.destroy();
+                mainWindow = null;
+            }
+
+            // Set quitting flag
+            app.isQuitting = true;
+
+            // Force quit any remaining app instances
+            app.exit(0);
+
+            // Small delay before installing
+            setTimeout(() => {
+                log.info('Installing update...');
+                autoUpdater.quitAndInstall(true, true);
+            }, 1000);
+
+        } catch (err) {
+            log.error('Error during update installation:', err);
+        }
     });
 });
 
@@ -92,7 +126,8 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js')
         }
     });
-
+    require('@electron/remote/main').enable(mainWindow.webContents);
+    
     // Handle close button
     mainWindow.on('close', function (event) {
         if (!app.isQuitting) {
@@ -141,10 +176,37 @@ function createTray() {
         {
             label: 'Exit',
             click: function () {
-                app.isQuitting = true;  // Set flag to true
-                tray.destroy();         // Remove tray icon
-                mainWindow.destroy();   // Force close main window
-                app.quit();            // Quit the app
+                try {
+                    log.info('Exiting application...');
+                    
+                    // Remove all event listeners
+                    if (mainWindow) {
+                        mainWindow.removeAllListeners('close');
+                    }
+                    
+                    // Destroy tray first
+                    if (tray) {
+                        log.info('Destroying tray...');
+                        tray.destroy();
+                        tray = null;
+                    }
+
+                    // Close main window
+                    if (mainWindow) {
+                        log.info('Closing main window...');
+                        mainWindow.hide();
+                        mainWindow.destroy();
+                        mainWindow = null;
+                    }
+
+                    // Set quitting flag
+                    app.isQuitting = true;
+
+                    // Force quit
+                    app.exit(0);
+                } catch (err) {
+                    log.error('Error during exit:', err);
+                }
             }
         }
     ]);
