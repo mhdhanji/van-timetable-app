@@ -1,12 +1,29 @@
-const { app, BrowserWindow, Tray, Menu, Notification, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, Notification, dialog, powerSaveBlocker, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
+const AutoLaunch = require('auto-launch');
 const fs = require('fs');
 
 let mainWindow = null;
 let tray = null;
 let updateChecked = false;
+let powerSaveBlockerId = null;
+
+// Configure auto launcher
+const autoLauncher = new AutoLaunch({
+    name: 'Van Timetable',
+    path: app.getPath('exe'),
+});
+
+// Check and enable auto launch
+autoLauncher.isEnabled().then((isEnabled) => {
+    if (!isEnabled) {
+        autoLauncher.enable();
+    }
+}).catch((err) => {
+    console.error('Auto Launch error:', err);
+});
 
 // Configure logging
 autoUpdater.logger = log;
@@ -36,6 +53,22 @@ function checkForUpdates() {
             updateChecked = false;
         });
     }
+}
+
+// Add wake-up function
+function forceWakeApp() {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        const size = mainWindow.getSize();
+        mainWindow.setSize(size[0], size[1] + 1);
+        setTimeout(() => {
+            mainWindow.setSize(size[0], size[1]);
+        }, 10);
+    }
+}
+
+function preventAppSuspension() {
+    powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+    app.setBackgroundThrottling(false);
 }
 
 // Add logging events
@@ -132,13 +165,23 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true,
             webSecurity: false,
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false
         },
         show: false
     });
     
+    mainWindow.on('minimize', () => {
+        preventAppSuspension();
+    });
+    
+    mainWindow.on('hide', () => {
+        preventAppSuspension();
+    });
+    
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
+        preventAppSuspension();
     });
     
     mainWindow.on('close', function (event) {
@@ -155,6 +198,16 @@ function createWindow() {
             }
         }
         return false;
+    });
+
+    // Add wake-up interval
+    setInterval(() => {
+        forceWakeApp();
+    }, 30000);
+
+    // Add IPC handler for wake-up
+    ipcMain.on('wake-up', () => {
+        forceWakeApp();
     });
 
     mainWindow.loadFile('index.html');
@@ -186,10 +239,22 @@ function createTray() {
             }
         },
         {
+            label: 'Start with Windows',
+            type: 'checkbox',
+            checked: true,
+            click: function (menuItem) {
+                if (menuItem.checked) {
+                    autoLauncher.enable();
+                } else {
+                    autoLauncher.disable();
+                }
+            }
+        },
+        {
             label: 'Check for Updates',
             click: function() {
                 log.info('Manually checking for updates...');
-                updateChecked = false; // Reset for manual check
+                updateChecked = false;
                 checkForUpdates();
             }
         },
@@ -222,6 +287,11 @@ function createTray() {
         }
     ]);
 
+    // Update the checkbox state
+    autoLauncher.isEnabled().then((isEnabled) => {
+        contextMenu.items[3].checked = isEnabled;
+    });
+
     tray.setToolTip(`Van Timetable v${app.getVersion()}`);
     tray.setContextMenu(contextMenu);
 
@@ -230,10 +300,18 @@ function createTray() {
     });
 }
 
-// Initialize app
 app.whenReady().then(() => {
     log.info('App starting...');
     log.info('Current version:', app.getVersion());
+    
+    // Set process priority higher for Windows
+    if (process.platform === 'win32') {
+        try {
+            process.processPrivilege.setPrivilege('SeIncreaseBasePriorityPrivilege', true);
+        } catch (err) {
+            log.error('Failed to set process priority:', err);
+        }
+    }
     
     const instanceLock = app.requestSingleInstanceLock();
     
@@ -251,6 +329,7 @@ app.whenReady().then(() => {
         createWindow();
         createTray();
         checkForUpdates();
+        preventAppSuspension();
     }
 });
 
@@ -269,6 +348,11 @@ app.on('activate', () => {
 app.on('before-quit', () => {
     log.info('Application is quitting...');
     app.isQuitting = true;
+    
+    if (powerSaveBlockerId !== null) {
+        powerSaveBlocker.stop(powerSaveBlockerId);
+        powerSaveBlockerId = null;
+    }
 });
 
 app.on('will-quit', () => {

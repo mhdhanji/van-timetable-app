@@ -1,6 +1,6 @@
 {
   "name": "van-timetable-app",
-  "version": "1.2.3",
+  "version": "1.2.5",
   "description": "MAP Van Timetable Application",
   "main": "main.js",
   "repository": {
@@ -18,7 +18,8 @@
   "dependencies": {
     "firebase": "^10.7.1",
     "electron-updater": "^6.1.7",
-    "electron-log": "^5.0.1"
+    "electron-log": "^5.0.1",
+    "auto-launch": "^5.0.5"
   },
   "devDependencies": {
     "electron": "^25.9.8",

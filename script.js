@@ -88,29 +88,35 @@ function showDesktopNotification(title, body) {
     }
 
     try {
+        // Force wake up before showing notification
+        if (window.electron) {
+            window.electron.wakeUp();
+        }
+
         // Close any existing notifications first
         if (window.activeNotification) {
             window.activeNotification.close();
         }
 
-        const notification = new Notification(title, {
-            body: body,
-            icon: 'icon.png',
-            silent: false,
-            requireInteraction: false,  // Don't require interaction
-            tag: 'van-notification'  // Tag to identify our notifications
-        });
-
-        // Store the notification reference
-        window.activeNotification = notification;
-
-        // Set a proper timeout to close it after 30 seconds
+        // Small delay to ensure system is ready
         setTimeout(() => {
-            if (notification) {
-                notification.close();
-                window.activeNotification = null;
-            }
-        }, 30000);  // 30 seconds
+            const notification = new Notification(title, {
+                body: body,
+                icon: 'icon.png',
+                silent: false,
+                requireInteraction: false,
+                tag: 'van-notification'
+            });
+
+            window.activeNotification = notification;
+
+            setTimeout(() => {
+                if (notification) {
+                    notification.close();
+                    window.activeNotification = null;
+                }
+            }, 30000);
+        }, 100);
 
     } catch (error) {
         console.error('Error showing notification:', error);
@@ -314,6 +320,9 @@ function createEmptyTimeGrid(locations) {
 }
 
 function checkDepartures() {
+    if (window.electron) {
+        window.electron.wakeUp();
+    }
     const now = new Date();
     const currentHours = now.getHours();
     const currentMinutes = now.getMinutes();
@@ -357,16 +366,23 @@ function checkDepartures() {
     if (allDepartedVans.length > 0) {
         const departureKey = `${currentHours}:${currentMinutes}`;
         if (departureKey !== lastDepartureNotificationTime) {
-            const notificationTitle = allDepartedVans.length > 1 ? 
-                'MULTIPLE VANS DEPARTED' : 
-                'VAN DEPARTED';
-            
-            const notificationBody = allDepartedVans.map(van => 
-                `${van.depot} - ${van.location}${van.suffix ? ` (${van.suffix})` : ''}`
-            ).join(', ');
+            if (window.electron) {
+                window.electron.wakeUp();
+            }
 
-            showDesktopNotification(notificationTitle, notificationBody);
-            lastDepartureNotificationTime = departureKey;
+            // Force a small delay to ensure system is awake
+            setTimeout(() => {
+                const notificationTitle = allDepartedVans.length > 1 ? 
+                    'MULTIPLE VANS DEPARTED' : 
+                    'VAN DEPARTED';
+                
+                const notificationBody = allDepartedVans.map(van => 
+                    `${van.depot} - ${van.location}${van.suffix ? ` (${van.suffix})` : ''}`
+                ).join(', ');
+
+                showDesktopNotification(notificationTitle, notificationBody);
+                lastDepartureNotificationTime = departureKey;
+            }, 100);
         }
     }
 
@@ -419,6 +435,9 @@ function checkDepartures() {
 }
 
 function checkUpcomingDepartures() {
+    if (window.electron) {
+        window.electron.wakeUp();
+    }
     const now = new Date();
     const currentTime = now.getTime();
     const currentMinute = `${now.getHours()}:${now.getMinutes()}`;
@@ -473,13 +492,21 @@ function checkUpcomingDepartures() {
     if (allUpcomingDepartures.length > 0) {
         const currentKey = `${now.getHours()}:${now.getMinutes()}`;
         if (currentKey !== lastFiveMinuteNotificationTime) {
-            const notificationTitle = '5 MINUTES TO DEPARTURE' + (allUpcomingDepartures.length > 1 ? 'S' : '');
-            const notificationBody = allUpcomingDepartures
-                .map(dep => `${dep.depot} - ${dep.location} at ${dep.time}`)
-                .join(', ');
+            if (window.electron) {
+                window.electron.wakeUp();
+            }
+            
+            // Force a small delay to ensure system is awake
+            setTimeout(() => {
+                const notificationTitle = '5 MINUTES TO DEPARTURE' + 
+                    (allUpcomingDepartures.length > 1 ? 'S' : '');
+                const notificationBody = allUpcomingDepartures
+                    .map(dep => `${dep.depot} - ${dep.location} at ${dep.time}`)
+                    .join(', ');
 
-            showDesktopNotification(notificationTitle, notificationBody);
-            lastFiveMinuteNotificationTime = currentKey;
+                showDesktopNotification(notificationTitle, notificationBody);
+                lastFiveMinuteNotificationTime = currentKey;
+            }, 100);
         }
     }
     
