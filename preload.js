@@ -12,11 +12,5 @@ contextBridge.exposeInMainWorld('electron', {
         node: () => process.versions.node,
         chrome: () => process.versions.chrome,
         electron: () => process.versions.electron
-    },
-
-    // IPC functions (commented out but ready to use)
-    // ipc: {
-    //     send: (channel, data) => ipcRenderer.send(channel, data),
-    //     receive: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args))
-    // }
+    }
 });

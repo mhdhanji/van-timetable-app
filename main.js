@@ -96,21 +96,21 @@ autoUpdater.on('update-downloaded', (info) => {
                 window.destroy();
             });
 
-            // Small delay before installing
-            setTimeout(() => {
-                log.info('Installing update...');
-                // Force application restart after update
-                autoUpdater.quitAndInstall(false, true);
-            }, 1000);
+            log.info('Installing update and restarting...');
+            
+            // Use allowDowngrade: true and isForceRun: true to ensure restart
+            autoUpdater.quitAndInstall(true, true);
 
         } catch (err) {
             log.error('Error during update installation:', err);
-            // If error occurs, try force quit and install
+            // If error occurs, try force quit and install with restart
             try {
-                autoUpdater.quitAndInstall(false, true);
+                autoUpdater.quitAndInstall(true, true);
             } catch (innerErr) {
                 log.error('Final attempt to install update failed:', innerErr);
-                app.quit();
+                // Force restart
+                app.relaunch();
+                app.exit(0);
             }
         }
     });
@@ -136,15 +136,21 @@ function createWindow() {
             contextIsolation: true,
             webSecurity: false,
             enableRemoteModule: true,
-            preload: path.join(__dirname, 'preload.js')
-        }
+            preload: path.join(app.getAppPath(), 'preload.js')
+        },
+        show: false // Hide window until ready
     });
 
     // Enable remote module for this window
     require('@electron/remote/main').enable(mainWindow.webContents);
     
     // Log preload script path
-    log.info('Preload script path:', path.join(__dirname, 'preload.js'));
+    log.info('Preload script path:', path.join(app.getAppPath(), 'preload.js'));
+    
+    // Show window when ready
+    mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
+    });
     
     // Handle close button
     mainWindow.on('close', function (event) {
@@ -265,7 +271,7 @@ app.on('activate', () => {
     }
 });
 
-// Add these new event handlers
+// Handle update-specific events
 app.on('before-quit', () => {
     log.info('Application is quitting...');
     app.isQuitting = true;
@@ -275,12 +281,24 @@ app.on('will-quit', () => {
     log.info('Application will quit...');
     if (app.isUpdating) {
         log.info('Application is updating, preparing for restart...');
+        // Force restart if updating
+        app.relaunch();
     }
 });
 
 app.on('quit', () => {
     log.info('Application has quit.');
     if (app.isUpdating) {
-        log.info('Application quit due to update, should restart automatically.');
+        log.info('Application quit due to update, restarting...');
+        // Additional restart check
+        app.relaunch();
+    }
+});
+
+// Handle the ready-to-show event
+app.on('ready-to-show', () => {
+    log.info('Application is ready to show');
+    if (mainWindow) {
+        mainWindow.show();
     }
 });
