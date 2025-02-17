@@ -19,7 +19,9 @@ autoUpdater.setFeedURL({
     provider: 'github',
     owner: 'mhdhanji',
     repo: 'van-timetable-app',
-    private: false
+    private: false,
+    releaseType: 'release',
+    vPrefixedTagName: false  // Set to false since we're not using 'v' prefix
 });
 
 // Add logging events
