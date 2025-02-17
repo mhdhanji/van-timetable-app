@@ -9,6 +9,8 @@ let mainWindow = null;
 let tray = null;
 let updateChecked = false;
 let powerSaveBlockerId = null;
+let isQuitting = false;
+let wakeupInterval = null;
 
 // Configure auto launcher
 const autoLauncher = new AutoLaunch({
@@ -55,20 +57,30 @@ function checkForUpdates() {
     }
 }
 
-// Add wake-up function
 function forceWakeApp() {
     if (mainWindow && !mainWindow.isDestroyed()) {
-        const size = mainWindow.getSize();
-        mainWindow.setSize(size[0], size[1] + 1);
-        setTimeout(() => {
-            mainWindow.setSize(size[0], size[1]);
-        }, 10);
+        try {
+            const size = mainWindow.getSize();
+            mainWindow.setSize(size[0], size[1] + 1);
+            setTimeout(() => {
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.setSize(size[0], size[1]);
+                }
+            }, 10);
+        } catch (error) {
+            log.error('Error in forceWakeApp:', error);
+        }
     }
 }
 
 function preventAppSuspension() {
-    powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
-    app.setBackgroundThrottling(false);
+    if (powerSaveBlockerId === null) {
+        powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+    }
+    
+    if (mainWindow && mainWindow.webContents && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.setBackgroundThrottling(false);
+    }
 }
 
 // Add logging events
@@ -78,16 +90,18 @@ autoUpdater.on('checking-for-update', () => {
 
 autoUpdater.on('update-available', (info) => {
     log.info('Update available:', info);
-    dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Available',
-        message: `Version ${info.version} is available. Would you like to download it now?`,
-        buttons: ['Yes', 'No']
-    }).then((result) => {
-        if (result.response === 0) {
-            autoUpdater.downloadUpdate();
-        }
-    });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Update Available',
+            message: `Version ${info.version} is available. Would you like to download it now?`,
+            buttons: ['Yes', 'No']
+        }).then((result) => {
+            if (result.response === 0) {
+                autoUpdater.downloadUpdate();
+            }
+        });
+    }
 });
 
 autoUpdater.on('update-not-available', (info) => {
@@ -102,59 +116,68 @@ autoUpdater.on('download-progress', (progressObj) => {
 
 autoUpdater.on('update-downloaded', (info) => {
     log.info('Update downloaded');
-    dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Ready',
-        message: 'Update downloaded. The application will close to install the update. Please wait for the installer to appear.',
-        buttons: ['Close and Install']
-    }).then(() => {
-        try {
-            log.info('Preparing to install update...');
-            
-            // Remove listeners and destroy tray first
-            if (mainWindow) {
-                mainWindow.removeAllListeners('close');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Update Ready',
+            message: 'Update downloaded. The application will close to install the update. Please wait for the installer to appear.',
+            buttons: ['Close and Install']
+        }).then(() => {
+            try {
+                log.info('Preparing to install update...');
+                
+                isQuitting = true;
+                
+                // Remove listeners and destroy tray first
+                if (mainWindow) {
+                    mainWindow.removeAllListeners('close');
+                }
+                
+                if (tray) {
+                    tray.destroy();
+                    tray = null;
+                }
+
+                // Clear intervals
+                if (wakeupInterval) {
+                    clearInterval(wakeupInterval);
+                    wakeupInterval = null;
+                }
+
+                // Close all windows
+                BrowserWindow.getAllWindows().forEach(window => {
+                    window.destroy();
+                });
+
+                // Force close the app completely
+                setImmediate(() => {
+                    app.quit();
+                    // Wait a moment before installing
+                    setTimeout(() => {
+                        autoUpdater.quitAndInstall(true, true);
+                    }, 1000);
+                });
+
+            } catch (err) {
+                log.error('Error during update installation:', err);
+                // Force quit if error occurs
+                app.exit(0);
             }
-            
-            if (tray) {
-                tray.destroy();
-                tray = null;
-            }
-
-            // Close all windows
-            BrowserWindow.getAllWindows().forEach(window => {
-                window.destroy();
-            });
-
-            // Set flags
-            app.isQuitting = true;
-            
-            // Force close the app completely
-            setImmediate(() => {
-                app.quit();
-                // Wait a moment before installing
-                setTimeout(() => {
-                    autoUpdater.quitAndInstall(true, true);
-                }, 1000);
-            });
-
-        } catch (err) {
-            log.error('Error during update installation:', err);
-            // Force quit if error occurs
-            app.exit(0);
-        }
-    });
+        });
+    }
 });
 
 autoUpdater.on('error', (err) => {
     log.error('AutoUpdater error:', err);
     log.error('Error details:', err.stack);
-    dialog.showMessageBox(mainWindow, {
-        type: 'error',
-        title: 'Update Error',
-        message: 'Error updating application. Check logs for details.',
-        detail: err.message
-    });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        dialog.showMessageBox(mainWindow, {
+            type: 'error',
+            title: 'Update Error',
+            message: 'Error updating application. Check logs for details.',
+            detail: err.message
+        });
+    }
 });
 
 function createWindow() {
@@ -170,22 +193,41 @@ function createWindow() {
         },
         show: false
     });
-    
+
+    // Clear any existing interval
+    if (wakeupInterval) {
+        clearInterval(wakeupInterval);
+        wakeupInterval = null;
+    }
+
+    // Set up wake-up interval
+    wakeupInterval = setInterval(() => {
+        if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
+            forceWakeApp();
+        }
+    }, 30000);
+
     mainWindow.on('minimize', () => {
-        preventAppSuspension();
+        if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
+            preventAppSuspension();
+        }
     });
     
     mainWindow.on('hide', () => {
-        preventAppSuspension();
+        if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
+            preventAppSuspension();
+        }
     });
     
     mainWindow.once('ready-to-show', () => {
-        mainWindow.show();
-        preventAppSuspension();
+        if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.show();
+            preventAppSuspension();
+        }
     });
     
     mainWindow.on('close', function (event) {
-        if (!app.isQuitting) {
+        if (!isQuitting) {
             event.preventDefault();
             mainWindow.hide();
             
@@ -200,16 +242,6 @@ function createWindow() {
         return false;
     });
 
-    // Add wake-up interval
-    setInterval(() => {
-        forceWakeApp();
-    }, 30000);
-
-    // Add IPC handler for wake-up
-    ipcMain.on('wake-up', () => {
-        forceWakeApp();
-    });
-
     mainWindow.loadFile('index.html');
     
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
@@ -220,8 +252,12 @@ function createWindow() {
         log.error('Preload script error:', preloadPath, error);
     });
 
-    log.info('Checking for updates...');
-    checkForUpdates();
+    // Add IPC handler for wake-up
+    ipcMain.on('wake-up', () => {
+        if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
+            forceWakeApp();
+        }
+    });
 }
 
 function createTray() {
@@ -235,7 +271,9 @@ function createTray() {
         {
             label: 'Show App',
             click: function () {
-                mainWindow.show();
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.show();
+                }
             }
         },
         {
@@ -264,39 +302,49 @@ function createTray() {
             click: function () {
                 try {
                     log.info('Exiting application...');
+                    isQuitting = true;
+
+                    // Clear intervals and stop blockers
+                    if (wakeupInterval) {
+                        clearInterval(wakeupInterval);
+                        wakeupInterval = null;
+                    }
+
+                    if (powerSaveBlockerId !== null) {
+                        powerSaveBlocker.stop(powerSaveBlockerId);
+                        powerSaveBlockerId = null;
+                    }
+
+                    // Cleanup window
                     if (mainWindow) {
                         mainWindow.removeAllListeners('close');
-                    }
-                    if (tray) {
-                        log.info('Destroying tray...');
-                        tray.destroy();
-                        tray = null;
-                    }
-                    if (mainWindow) {
-                        log.info('Closing main window...');
                         mainWindow.hide();
                         mainWindow.destroy();
                         mainWindow = null;
                     }
-                    app.isQuitting = true;
-                    app.exit(0);
+
+                    // Cleanup tray
+                    if (tray) {
+                        tray.destroy();
+                        tray = null;
+                    }
+
+                    app.quit();
                 } catch (err) {
                     log.error('Error during exit:', err);
+                    app.exit(0);
                 }
             }
         }
     ]);
 
-    // Update the checkbox state
-    autoLauncher.isEnabled().then((isEnabled) => {
-        contextMenu.items[3].checked = isEnabled;
-    });
-
     tray.setToolTip(`Van Timetable v${app.getVersion()}`);
     tray.setContextMenu(contextMenu);
 
     tray.on('click', () => {
-        mainWindow.show();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.show();
+        }
     });
 }
 
@@ -319,7 +367,7 @@ app.whenReady().then(() => {
         app.quit();
     } else {
         app.on('second-instance', () => {
-            if (mainWindow) {
+            if (mainWindow && !mainWindow.isDestroyed()) {
                 if (mainWindow.isMinimized()) mainWindow.restore();
                 mainWindow.show();
                 mainWindow.focus();
@@ -329,12 +377,17 @@ app.whenReady().then(() => {
         createWindow();
         createTray();
         checkForUpdates();
-        preventAppSuspension();
+        
+        // Only call preventAppSuspension after window is created
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            preventAppSuspension();
+        }
     }
 });
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
+        isQuitting = true;
         app.quit();
     }
 });
@@ -347,18 +400,32 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
     log.info('Application is quitting...');
-    app.isQuitting = true;
+    isQuitting = true;
+    
+    // Clear the wake-up interval
+    if (wakeupInterval) {
+        clearInterval(wakeupInterval);
+        wakeupInterval = null;
+    }
     
     if (powerSaveBlockerId !== null) {
         powerSaveBlocker.stop(powerSaveBlockerId);
         powerSaveBlockerId = null;
     }
+
+    // Cleanup tray
+    if (tray) {
+        tray.destroy();
+        tray = null;
+    }
 });
 
 app.on('will-quit', () => {
     log.info('Application will quit...');
+    isQuitting = true;
 });
 
 app.on('quit', () => {
     log.info('Application has quit.');
+    isQuitting = true;
 });
