@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, Notification } = require('electron');
+const { app, BrowserWindow, Tray, Menu, Notification, dialog } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
@@ -8,11 +8,59 @@ let tray = null;
 
 // Configure logging
 autoUpdater.logger = log;
-autoUpdater.logger.transports.file.level = 'info';
+autoUpdater.logger.transports.file.level = 'debug';
 
 // Configure updater
 autoUpdater.autoDownload = false;
 autoUpdater.allowDowngrade = false;
+
+// Add logging events
+autoUpdater.on('checking-for-update', () => {
+    log.info('Checking for update...');
+});
+
+autoUpdater.on('update-available', (info) => {
+    log.info('Update available:', info);
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Available',
+        message: `Version ${info.version} is available. Would you like to download it now?`,
+        buttons: ['Yes', 'No']
+    }).then((result) => {
+        if (result.response === 0) {
+            autoUpdater.downloadUpdate();
+        }
+    });
+});
+
+autoUpdater.on('update-not-available', (info) => {
+    log.info('Update not available:', info);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+    log.info(`Download progress: ${progressObj.percent}%`);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+    log.info('Update downloaded');
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Ready',
+        message: 'Update downloaded. The application will restart to install the update.',
+        buttons: ['Restart Now']
+    }).then(() => {
+        autoUpdater.quitAndInstall(false, true);
+    });
+});
+
+autoUpdater.on('error', (err) => {
+    log.error('AutoUpdater error:', err);
+    dialog.showMessageBox(mainWindow, {
+        type: 'error',
+        title: 'Update Error',
+        message: 'Error updating application: ' + err.message
+    });
+});
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -45,44 +93,13 @@ function createWindow() {
     });
 
     mainWindow.loadFile('index.html');
-
-    // Check for updates
-    autoUpdater.checkForUpdates();
+    
+    // Check for updates with error catching
+    log.info('Checking for updates...');
+    autoUpdater.checkForUpdates().catch(err => {
+        log.error('Error checking for updates:', err);
+    });
 }
-
-// Auto-updater events
-autoUpdater.on('update-available', (info) => {
-    dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Available',
-        message: `Version ${info.version} is available. Would you like to download it now?`,
-        buttons: ['Yes', 'No']
-    }).then((result) => {
-        if (result.response === 0) {
-            autoUpdater.downloadUpdate();
-        }
-    });
-});
-
-autoUpdater.on('update-downloaded', () => {
-    dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Ready',
-        message: 'Update downloaded. The application will restart to install the update.',
-        buttons: ['Restart Now']
-    }).then(() => {
-        autoUpdater.quitAndInstall(false, true);
-    });
-});
-
-autoUpdater.on('error', (err) => {
-    log.error('AutoUpdater error:', err);
-    dialog.showMessageBox(mainWindow, {
-        type: 'error',
-        title: 'Update Error',
-        message: 'Error updating application: ' + err
-    });
-});
 
 function createTray() {
     tray = new Tray(path.join(__dirname, 'icon.png'));
@@ -96,7 +113,10 @@ function createTray() {
         {
             label: 'Check for Updates',
             click: function() {
-                autoUpdater.checkForUpdates();
+                log.info('Manually checking for updates...');
+                autoUpdater.checkForUpdates().catch(err => {
+                    log.error('Error checking for updates:', err);
+                });
             }
         },
         {
