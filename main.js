@@ -21,7 +21,7 @@ autoUpdater.setFeedURL({
     repo: 'van-timetable-app',
     private: false,
     releaseType: 'release',
-    vPrefixedTagName: false  // Set to false since we're not using 'v' prefix
+    vPrefixedTagName: false
 });
 
 // Add logging events
@@ -58,10 +58,15 @@ autoUpdater.on('update-downloaded', (info) => {
     dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Update Ready',
-        message: 'Update downloaded. The application will restart to install the update.',
-        buttons: ['Restart Now']
+        message: 'Update downloaded. The application will close and install the update.',
+        buttons: ['Install Now']
     }).then(() => {
-        autoUpdater.quitAndInstall(false, true);
+        // Force close the app properly
+        app.isQuitting = true;  // Set flag to true
+        tray.destroy();         // Remove tray icon
+        mainWindow.destroy();   // Force close main window
+        app.quit();            // Quit the app
+        autoUpdater.quitAndInstall(false, true);  // Install update
     });
 });
 
@@ -136,8 +141,10 @@ function createTray() {
         {
             label: 'Exit',
             click: function () {
-                app.isQuitting = true;
-                app.quit();
+                app.isQuitting = true;  // Set flag to true
+                tray.destroy();         // Remove tray icon
+                mainWindow.destroy();   // Force close main window
+                app.quit();            // Quit the app
             }
         }
     ]);
@@ -152,6 +159,8 @@ function createTray() {
 
 // Initialize app
 app.whenReady().then(() => {
+    log.info('App starting...');
+    log.info('Current version:', app.getVersion());
     createWindow();
     createTray();
 

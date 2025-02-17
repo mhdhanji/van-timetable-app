@@ -9,8 +9,10 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write  # Add this line for write permissions
     env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Changed from GH_TOKEN to GITHUB_TOKEN
     steps:
     - uses: actions/checkout@v4
     
@@ -25,6 +27,8 @@ jobs:
     - name: Build and Publish
       if: startsWith(github.ref, 'refs/tags/')
       run: npm run publish
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Add token here as well
       
     - name: Regular Build
       if: "!startsWith(github.ref, 'refs/tags/')"
@@ -38,8 +42,8 @@ jobs:
           dist/*.exe
           dist/latest.yml
 
-    # Add this new step for automatic release publishing
-    - name: Create Release
+    # Add this step for automatic release publishing
+    - name: Publish Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
@@ -48,5 +52,6 @@ jobs:
           dist/latest.yml
         draft: false
         prerelease: false
+        generate_release_notes: true
       env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
