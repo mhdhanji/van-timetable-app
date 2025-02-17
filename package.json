@@ -47,8 +47,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Van Timetable",
-      "installerIcon": "icon.ico",
-      "uninstallerIcon": "icon.ico"
+      "installerIcon": "icon.png",
+      "uninstallerIcon": "icon.png"
     }
   }
 }
