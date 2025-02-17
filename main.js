@@ -2,6 +2,8 @@ const { app, BrowserWindow, Tray, Menu, Notification, dialog } = require('electr
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
+const isDev = require('electron-is-dev');
+const fs = require('fs');
 require('@electron/remote/main').initialize();
 
 let mainWindow = null;
@@ -65,52 +67,54 @@ autoUpdater.on('update-downloaded', (info) => {
         try {
             log.info('Preparing to install update...');
             
-            // Set a flag to indicate we're updating
+            // Set updating flag
             app.isUpdating = true;
             
-            // Remove all event listeners
+            // Create a batch script to restart the app
+            const restartScript = `
+                @echo off
+                timeout /t 2 /nobreak > nul
+                start "" "${app.getPath('exe')}"
+                del "%~f0"
+            `;
+            
+            const scriptPath = path.join(app.getPath('temp'), 'restart.bat');
+            fs.writeFileSync(scriptPath, restartScript);
+            
+            log.info('Created restart script at:', scriptPath);
+
+            // Cleanup existing app
             if (mainWindow) {
                 mainWindow.removeAllListeners('close');
+                mainWindow.hide();
             }
             
-            // Destroy tray first
             if (tray) {
-                log.info('Destroying tray...');
                 tray.destroy();
                 tray = null;
             }
 
-            // Close main window
-            if (mainWindow) {
-                log.info('Closing main window...');
-                mainWindow.hide();
-                mainWindow.destroy();
-                mainWindow = null;
-            }
-
-            // Set quitting flag
-            app.isQuitting = true;
-
-            // Force all windows to close
-            BrowserWindow.getAllWindows().forEach(window => {
-                window.destroy();
+            // Execute restart script and quit
+            require('child_process').spawn(scriptPath, [], {
+                detached: true,
+                stdio: 'ignore',
+                shell: true
             });
 
-            log.info('Installing update and restarting...');
-            
-            // Use allowDowngrade: true and isForceRun: true to ensure restart
-            autoUpdater.quitAndInstall(true, true);
+            // Install update and quit
+            setImmediate(() => {
+                app.isQuitting = true;
+                autoUpdater.quitAndInstall(false, true);
+            });
 
         } catch (err) {
             log.error('Error during update installation:', err);
-            // If error occurs, try force quit and install with restart
             try {
-                autoUpdater.quitAndInstall(true, true);
-            } catch (innerErr) {
-                log.error('Final attempt to install update failed:', innerErr);
-                // Force restart
+                // Fallback restart method
                 app.relaunch();
                 app.exit(0);
+            } catch (innerErr) {
+                log.error('Final restart attempt failed:', innerErr);
             }
         }
     });
@@ -138,21 +142,17 @@ function createWindow() {
             enableRemoteModule: true,
             preload: path.join(app.getAppPath(), 'preload.js')
         },
-        show: false // Hide window until ready
+        show: false
     });
 
-    // Enable remote module for this window
     require('@electron/remote/main').enable(mainWindow.webContents);
     
-    // Log preload script path
     log.info('Preload script path:', path.join(app.getAppPath(), 'preload.js'));
     
-    // Show window when ready
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
     });
     
-    // Handle close button
     mainWindow.on('close', function (event) {
         if (!app.isQuitting) {
             event.preventDefault();
@@ -171,7 +171,6 @@ function createWindow() {
 
     mainWindow.loadFile('index.html');
     
-    // Add debugging events
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
         log.error('Page failed to load:', errorDescription);
     });
@@ -180,7 +179,6 @@ function createWindow() {
         log.error('Preload script error:', preloadPath, error);
     });
 
-    // Check for updates
     log.info('Checking for updates...');
     autoUpdater.checkForUpdates().catch(err => {
         log.error('Error checking for updates:', err);
@@ -251,12 +249,28 @@ function createTray() {
 app.whenReady().then(() => {
     log.info('App starting...');
     log.info('Current version:', app.getVersion());
-    createWindow();
-    createTray();
+    
+    // Check if app was launched from update
+    const instanceLock = app.requestSingleInstanceLock();
+    
+    if (!instanceLock) {
+        app.quit();
+    } else {
+        app.on('second-instance', () => {
+            if (mainWindow) {
+                if (mainWindow.isMinimized()) mainWindow.restore();
+                mainWindow.show();
+                mainWindow.focus();
+            }
+        });
+        
+        createWindow();
+        createTray();
 
-    autoUpdater.checkForUpdates().catch(err => {
-        log.error('Initial update check failed:', err);
-    });
+        autoUpdater.checkForUpdates().catch(err => {
+            log.error('Initial update check failed:', err);
+        });
+    }
 });
 
 app.on('window-all-closed', () => {
@@ -271,7 +285,6 @@ app.on('activate', () => {
     }
 });
 
-// Handle update-specific events
 app.on('before-quit', () => {
     log.info('Application is quitting...');
     app.isQuitting = true;
@@ -281,7 +294,6 @@ app.on('will-quit', () => {
     log.info('Application will quit...');
     if (app.isUpdating) {
         log.info('Application is updating, preparing for restart...');
-        // Force restart if updating
         app.relaunch();
     }
 });
@@ -290,12 +302,10 @@ app.on('quit', () => {
     log.info('Application has quit.');
     if (app.isUpdating) {
         log.info('Application quit due to update, restarting...');
-        // Additional restart check
         app.relaunch();
     }
 });
 
-// Handle the ready-to-show event
 app.on('ready-to-show', () => {
     log.info('Application is ready to show');
     if (mainWindow) {

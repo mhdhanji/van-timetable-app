@@ -1,6 +1,6 @@
 {
   "name": "van-timetable-app",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "MAP Van Timetable Application",
   "main": "main.js",
   "repository": {
@@ -19,7 +19,8 @@
     "firebase": "^10.7.1",
     "electron-updater": "^6.1.7",
     "electron-log": "^5.0.1",
-    "@electron/remote": "^2.1.2"
+    "@electron/remote": "^2.1.2",
+    "electron-is-dev": "^2.0.0"
   },
   "devDependencies": {
     "electron": "^25.9.8",
@@ -45,11 +46,8 @@
       "script.js",
       "icon.png"
     ],
-    "extraFiles": [
-      {
-        "from": "preload.js",
-        "to": "resources/app/preload.js"
-      }
+    "asarUnpack": [
+      "preload.js"
     ],
     "directories": {
       "output": "dist"
