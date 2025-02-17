@@ -1,8 +1,18 @@
 const { app, BrowserWindow, Tray, Menu, Notification } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
+const log = require('electron-log');
 
 let mainWindow = null;
 let tray = null;
+
+// Configure logging
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'info';
+
+// Configure updater
+autoUpdater.autoDownload = false;
+autoUpdater.allowDowngrade = false;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -35,7 +45,44 @@ function createWindow() {
     });
 
     mainWindow.loadFile('index.html');
+
+    // Check for updates
+    autoUpdater.checkForUpdates();
 }
+
+// Auto-updater events
+autoUpdater.on('update-available', (info) => {
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Available',
+        message: `Version ${info.version} is available. Would you like to download it now?`,
+        buttons: ['Yes', 'No']
+    }).then((result) => {
+        if (result.response === 0) {
+            autoUpdater.downloadUpdate();
+        }
+    });
+});
+
+autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Ready',
+        message: 'Update downloaded. The application will restart to install the update.',
+        buttons: ['Restart Now']
+    }).then(() => {
+        autoUpdater.quitAndInstall(false, true);
+    });
+});
+
+autoUpdater.on('error', (err) => {
+    log.error('AutoUpdater error:', err);
+    dialog.showMessageBox(mainWindow, {
+        type: 'error',
+        title: 'Update Error',
+        message: 'Error updating application: ' + err
+    });
+});
 
 function createTray() {
     tray = new Tray(path.join(__dirname, 'icon.png'));
@@ -44,6 +91,12 @@ function createTray() {
             label: 'Show App',
             click: function () {
                 mainWindow.show();
+            }
+        },
+        {
+            label: 'Check for Updates',
+            click: function() {
+                autoUpdater.checkForUpdates();
             }
         },
         {
