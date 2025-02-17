@@ -1,6 +1,10 @@
-# Rebuild with new token
 name: Build
-on: [push]
+on: 
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -9,16 +13,27 @@ jobs:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
     - uses: actions/checkout@v4
+    
     - name: Use Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
+        
     - name: Install dependencies
       run: npm install
-    - name: Build
+      
+    - name: Build and Publish
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: npm run publish
+      
+    - name: Regular Build
+      if: "!startsWith(github.ref, 'refs/tags/v')"
       run: npm run build:win
+      
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: windows-build
-        path: dist/*.exe
+        path: |
+          dist/*.exe
+          dist/latest.yml
