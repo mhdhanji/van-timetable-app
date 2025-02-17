@@ -272,7 +272,7 @@ td:empty {
 }
 
 /* Make table more compact if needed */
-@media (max-width: 1000px) {
+@media (max-width: 1200px) {
     th, td {
         padding: 8px;
         font-size: 14px;
