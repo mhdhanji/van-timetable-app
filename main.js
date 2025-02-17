@@ -6,6 +6,7 @@ const fs = require('fs');
 
 let mainWindow = null;
 let tray = null;
+let updateChecked = false;
 
 // Configure logging
 autoUpdater.logger = log;
@@ -14,6 +15,8 @@ autoUpdater.logger.transports.file.level = 'debug';
 // Configure updater
 autoUpdater.autoDownload = false;
 autoUpdater.allowDowngrade = false;
+autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.forceDevUpdateConfig = false;
 
 // Set update feed URL
 autoUpdater.setFeedURL({
@@ -24,6 +27,16 @@ autoUpdater.setFeedURL({
     releaseType: 'release',
     vPrefixedTagName: false
 });
+
+function checkForUpdates() {
+    if (!updateChecked) {
+        updateChecked = true;
+        autoUpdater.checkForUpdates().catch(err => {
+            log.error('Error checking for updates:', err);
+            updateChecked = false;
+        });
+    }
+}
 
 // Add logging events
 autoUpdater.on('checking-for-update', () => {
@@ -59,31 +72,42 @@ autoUpdater.on('update-downloaded', (info) => {
     dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Update Ready',
-        message: 'Update downloaded. The application will close and install the update. Please restart the application manually after installation.',
-        buttons: ['Install and Close']
+        message: 'Update downloaded. The application will close to install the update. Please wait for the installer to appear.',
+        buttons: ['Close and Install']
     }).then(() => {
         try {
-            // Clean up
+            log.info('Preparing to install update...');
+            
+            // Remove listeners and destroy tray first
+            if (mainWindow) {
+                mainWindow.removeAllListeners('close');
+            }
+            
             if (tray) {
                 tray.destroy();
                 tray = null;
             }
 
-            // Set flags
-            app.isQuitting = true;
-            
             // Close all windows
             BrowserWindow.getAllWindows().forEach(window => {
                 window.destroy();
             });
 
-            // Force quit the app
-            app.quit();
+            // Set flags
+            app.isQuitting = true;
             
-            // Install update
-            autoUpdater.quitAndInstall(false, true);
+            // Force close the app completely
+            setImmediate(() => {
+                app.quit();
+                // Wait a moment before installing
+                setTimeout(() => {
+                    autoUpdater.quitAndInstall(true, true);
+                }, 1000);
+            });
+
         } catch (err) {
             log.error('Error during update installation:', err);
+            // Force quit if error occurs
             app.exit(0);
         }
     });
@@ -144,9 +168,7 @@ function createWindow() {
     });
 
     log.info('Checking for updates...');
-    autoUpdater.checkForUpdates().catch(err => {
-        log.error('Error checking for updates:', err);
-    });
+    checkForUpdates();
 }
 
 function createTray() {
@@ -167,9 +189,8 @@ function createTray() {
             label: 'Check for Updates',
             click: function() {
                 log.info('Manually checking for updates...');
-                autoUpdater.checkForUpdates().catch(err => {
-                    log.error('Error checking for updates:', err);
-                });
+                updateChecked = false; // Reset for manual check
+                checkForUpdates();
             }
         },
         { type: 'separator' },
@@ -214,7 +235,6 @@ app.whenReady().then(() => {
     log.info('App starting...');
     log.info('Current version:', app.getVersion());
     
-    // Check if app was launched from update
     const instanceLock = app.requestSingleInstanceLock();
     
     if (!instanceLock) {
@@ -230,10 +250,7 @@ app.whenReady().then(() => {
         
         createWindow();
         createTray();
-
-        autoUpdater.checkForUpdates().catch(err => {
-            log.error('Initial update check failed:', err);
-        });
+        checkForUpdates();
     }
 });
 

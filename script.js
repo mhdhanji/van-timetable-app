@@ -730,11 +730,6 @@ async function loadTimetableData() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-     // Add this near the beginning
-     if (window.electron && window.electron.getVersion) {
-        const versionElement = document.getElementById('app-version');
-        versionElement.textContent = window.electron.getVersion();
-    }
     await requestNotificationPermission();
     document.getElementById('table-select').addEventListener('change', showTable);
     document.getElementById('refresh-button').addEventListener('click', loadTimetableData);
