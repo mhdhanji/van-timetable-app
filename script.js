@@ -592,7 +592,7 @@ async function loadTimetableData() {
         ];
 
         const fengateLocations = [
-            'OXYNEY ROAD',
+            'OXNEY ROAD',
             'BOONGATE',
             'FENGATE ROAD'
         ];
