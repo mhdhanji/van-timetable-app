@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu } = require('electron');
+const { app, BrowserWindow, Tray, Menu, Notification } = require('electron');
 const path = require('path');
 
 let mainWindow = null;
@@ -21,11 +21,15 @@ function createWindow() {
         if (!app.isQuitting) {
             event.preventDefault();
             mainWindow.hide();
-            // Optional: Show notification that app is minimized to tray
-            new Notification({
-                title: 'Van Timetable',
-                body: 'Application is still running in the system tray'
-            }).show();
+            
+            // Show system notification properly
+            if (Notification.isSupported()) {
+                new Notification({
+                    title: 'Van Timetable',
+                    body: 'Application is still running in the system tray',
+                    icon: path.join(__dirname, 'icon.png')
+                }).show();
+            }
         }
         return false;
     });
