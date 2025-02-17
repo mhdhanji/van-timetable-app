@@ -25,6 +25,7 @@
                     <select id="table-select">
                         <option value="maskew">MASKEW AVENUE</option>
                         <option value="market">MARKET DEEPING</option>
+                        <option value="fengate">FENGATE</option>
                     </select>
                     <button id="refresh-button">Refresh Data</button>
                     <div class="key">
@@ -96,7 +97,22 @@
                 <tbody id="market-body"></tbody>
             </table>
         </div>
-    </div>
+
+        </div>
+            <div id="fengate-section" class="timetable-section">
+            <h2 class="subtitle">RUNS FOR MONDAY - FRIDAY</h2>
+            <div class="timestamp">Last Updated: <span id="update-time"></span></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>OXNEY ROAD</th>
+                        <th>BOONGATE</th>
+                        <th>FENGATE ROAD</th>
+                    </tr>
+                </thead>
+                <tbody id="fengate-body"></tbody>
+            </table>
+        </div>
     <script>
         // Initialize Firebase
         const firebaseConfig = {
@@ -130,6 +146,16 @@
                     return querySnapshot.docs.map(doc => doc.data());
                 } catch (error) {
                     console.error("Error fetching Market data:", error);
+                    throw error;
+                }
+            },
+
+            getFengateData: async () => {
+                try {
+                    const querySnapshot = await db.collection('fengate').get();
+                    return querySnapshot.docs.map(doc => doc.data());
+                } catch (error) {
+                    console.error("Error fetching Fengate data:", error);
                     throw error;
                 }
             },

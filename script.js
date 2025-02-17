@@ -210,13 +210,20 @@ function showTable() {
     const select = document.getElementById('table-select');
     const maskewSection = document.getElementById('maskew-section');
     const marketSection = document.getElementById('market-section');
+    const fengateSection = document.getElementById('fengate-section');
 
+    // Remove active class from all sections
+    maskewSection.classList.remove('active');
+    marketSection.classList.remove('active');
+    fengateSection.classList.remove('active');
+
+    // Add active class to selected section
     if (select.value === 'maskew') {
         maskewSection.classList.add('active');
-        marketSection.classList.remove('active');
-    } else {
+    } else if (select.value === 'market') {
         marketSection.classList.add('active');
-        maskewSection.classList.remove('active');
+    } else if (select.value === 'fengate') {
+        fengateSection.classList.add('active');
     }
 
     // Reset all checks to force rechecking
@@ -268,9 +275,11 @@ function updateTimestamp() {
     // Fallback for specific IDs if needed
     const maskewTimestamp = document.querySelector('#maskew-section .timestamp');
     const marketTimestamp = document.querySelector('#market-section .timestamp');
+    const fengateTimestamp = document.querySelector('#fengate-section .timestamp');
     
     if (maskewTimestamp) maskewTimestamp.textContent = formattedTimestamp;
     if (marketTimestamp) marketTimestamp.textContent = formattedTimestamp;
+    if (fengateTimestamp) fengateTimestamp.textContent = formattedTimestamp;
 }
 
 function getTimeStatus(timeStr) {
@@ -320,7 +329,9 @@ function checkDepartures() {
     let allDepartedVans = [];
     
     tables.forEach(table => {
-        const tableName = table.id === 'maskew-section' ? 'Maskew Avenue' : 'Market Deeping';
+        const tableName = table.id === 'maskew-section' ? 'Maskew Avenue' : 
+                         table.id === 'market-section' ? 'Market Deeping' : 
+                         'Fengate';
         const allRows = table.querySelectorAll('tr');
         
         allRows.forEach(row => {
@@ -423,7 +434,9 @@ function checkUpcomingDepartures() {
     let allUpcomingDepartures = [];
     
     tables.forEach(table => {
-        const tableName = table.id === 'maskew-section' ? 'Maskew Avenue' : 'Market Deeping';
+        const tableName = table.id === 'maskew-section' ? 'Maskew Avenue' : 
+                         table.id === 'market-section' ? 'Market Deeping' : 
+                         'Fengate';
         const allRows = table.querySelectorAll('tr');
         
         allRows.forEach(row => {
@@ -549,6 +562,7 @@ async function loadTimetableData() {
         // Use the exposed Firebase API
         const maskewData = await window.firebaseApi.getMaskewData();
         const marketData = await window.firebaseApi.getMarketData();
+        const fengateData = await window.firebaseApi.getFengateData(); // Add Fengate data
         const ibtData = await window.firebaseApi.getIBTData();
 
         const today = new Date();
@@ -577,6 +591,12 @@ async function loadTimetableData() {
             'IBT'
         ];
 
+        const fengateLocations = [
+            'OXYNEY ROAD',
+            'BOONGATE',
+            'FENGATE ROAD',
+        ];
+
         // Process Maskew Avenue data
         const maskewGrid = createEmptyTimeGrid(maskewLocations);
         const allMaskewTimes = new Set();
@@ -586,7 +606,7 @@ async function loadTimetableData() {
             ibtData.maskew_avenue_saturday_times : 
             ibtData.maskew_avenue_weekday_times;
 
-        // Process the times directly from the numbered keys
+        // Process IBT times for Maskew
         for (let i = 0; i < Object.keys(maskewIBTTimes).length; i++) {
             const time = maskewIBTTimes[i];
             if (time) {
@@ -620,7 +640,7 @@ async function loadTimetableData() {
             ibtData.market_deeping_saturday_times : 
             ibtData.market_deeping_weekday_times;
 
-        // Process the times directly from the numbered keys
+        // Process IBT times for Market
         for (let i = 0; i < Object.keys(marketIBTTimes).length; i++) {
             const time = marketIBTTimes[i];
             if (time) {
@@ -645,70 +665,72 @@ async function loadTimetableData() {
             }
         });
 
-        // Render Maskew table
-        const maskewBody = document.getElementById('maskew-body');
-        maskewBody.innerHTML = '';
+        // Process Fengate data
+        const fengateGrid = createEmptyTimeGrid(fengateLocations);
+        const allFengateTimes = new Set();
 
-        Array.from(allMaskewTimes).sort((a, b) => {
-            const timeA = new Date(`1970/01/01 ${a}`);
-            const timeB = new Date(`1970/01/01 ${b}`);
-            return timeA - timeB;
-        }).forEach(time => {
-            const row = document.createElement('tr');
-            maskewLocations.forEach(location => {
-                const cell = document.createElement('td');
-                const value = maskewGrid[location][time];
-                const timeStatus = getTimeStatus(time);
-                
-                cell.className = timeStatus;
-                if (value) {
-                    cell.textContent = value.time;
-                    if (value.suffix) {
-                        cell.dataset.suffix = value.suffix;
-                    }
+        // Process regular stop times for Fengate
+        fengateData.forEach(doc => {
+            const location = doc.stop_name.toUpperCase();
+            if (location !== 'IBT') {
+                const times = isSaturday ? doc.saturday_times : doc.times;
+                if (times) {
+                    Object.values(times).forEach(time => {
+                        allFengateTimes.add(time);
+                        if (!fengateGrid[location]) fengateGrid[location] = {};
+                        fengateGrid[location][time] = { time: time };
+                    });
                 }
-                row.appendChild(cell);
-            });
-            maskewBody.appendChild(row);
+            }
         });
 
-        // Render Market table
-        const marketBody = document.getElementById('market-body');
-        marketBody.innerHTML = '';
+        // Render all tables
+        function renderTable(bodyId, times, locations, grid) {
+            const tableBody = document.getElementById(bodyId);
+            tableBody.innerHTML = '';
 
-        Array.from(allMarketTimes).sort((a, b) => {
-            const timeA = new Date(`1970/01/01 ${a}`);
-            const timeB = new Date(`1970/01/01 ${b}`);
-            return timeA - timeB;
-        }).forEach(time => {
-            const row = document.createElement('tr');
-            marketLocations.forEach(location => {
-                const cell = document.createElement('td');
-                const value = marketGrid[location][time];
-                const timeStatus = getTimeStatus(time);
-                
-                cell.className = timeStatus;
-                if (value) {
-                    cell.textContent = value.time;
-                    if (value.suffix) {
-                        cell.dataset.suffix = value.suffix;
+            Array.from(times).sort((a, b) => {
+                const timeA = new Date(`1970/01/01 ${a}`);
+                const timeB = new Date(`1970/01/01 ${b}`);
+                return timeA - timeB;
+            }).forEach(time => {
+                const row = document.createElement('tr');
+                locations.forEach(location => {
+                    const cell = document.createElement('td');
+                    const value = grid[location][time];
+                    const timeStatus = getTimeStatus(time);
+                    
+                    cell.className = timeStatus;
+                    if (value) {
+                        cell.textContent = value.time;
+                        if (value.suffix) {
+                            cell.dataset.suffix = value.suffix;
+                        }
                     }
-                }
-                row.appendChild(cell);
+                    row.appendChild(cell);
+                });
+                tableBody.appendChild(row);
             });
-            marketBody.appendChild(row);
-        });
+        }
+
+        // Render all tables
+        renderTable('maskew-body', allMaskewTimes, maskewLocations, maskewGrid);
+        renderTable('market-body', allMarketTimes, marketLocations, marketGrid);
+        renderTable('fengate-body', allFengateTimes, fengateLocations, fengateGrid);
 
         // Update subtitles
         const maskewSubtitle = document.querySelector('#maskew-section .subtitle');
         const marketSubtitle = document.querySelector('#market-section .subtitle');
+        const fengateSubtitle = document.querySelector('#fengate-section .subtitle');
         
         if (isSaturday) {
             maskewSubtitle.textContent = 'SATURDAY RUNS';
             marketSubtitle.textContent = 'SATURDAY RUNS';
+            fengateSubtitle.textContent = 'SATURDAY RUNS';
         } else {
             maskewSubtitle.textContent = 'OUT OF TOWN RUNS FOR MONDAY - FRIDAY';
             marketSubtitle.textContent = 'RUNS FOR MONDAY - FRIDAY';
+            fengateSubtitle.textContent = 'RUNS FOR MONDAY - FRIDAY';
         }
 
         // Reset cell classes
@@ -734,7 +756,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('table-select').addEventListener('change', showTable);
     document.getElementById('refresh-button').addEventListener('click', loadTimetableData);
     
-    // Add this new keyboard event listener here
+    // Volume control keyboard events
     document.addEventListener('keydown', (event) => {
         // Plus key (+) to increase volume
         if (event.key === '+' || event.key === '=') {
@@ -779,8 +801,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     updateClock();
 
-    // Initial load
+    // Initial load with table selection handling
     loadTimetableData().then(() => {
+        // Get the selected table value
+        const tableSelect = document.getElementById('table-select');
+        const selectedTable = tableSelect.value;
+        
+        // Show the appropriate table
+        const maskewSection = document.getElementById('maskew-section');
+        const marketSection = document.getElementById('market-section');
+        const fengateSection = document.getElementById('fengate-section');
+        
+        maskewSection.classList.remove('active');
+        marketSection.classList.remove('active');
+        fengateSection.classList.remove('active');
+        
+        if (selectedTable === 'maskew') {
+            maskewSection.classList.add('active');
+        } else if (selectedTable === 'market') {
+            marketSection.classList.add('active');
+        } else if (selectedTable === 'fengate') {
+            fengateSection.classList.add('active');
+        }
+        
         showTable();
     }).catch(error => {
         console.error('Error in initial load:', error);

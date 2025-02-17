@@ -46,7 +46,9 @@ async function getIBTData() {
             market_deeping_saturday_times: ibtData.market_deeping_saturday_times || {},
             market_deeping_weekday_times: ibtData.market_deeping_weekday_times || {},
             maskew_avenue_saturday_times: ibtData.maskew_avenue_saturday_times || {},
-            maskew_avenue_weekday_times: ibtData.maskew_avenue_weekday_times || {}
+            maskew_avenue_weekday_times: ibtData.maskew_avenue_weekday_times || {},
+            fengate_saturday_times: ibtData.fengate_saturday_times || {},
+            fengate_weekday_times: ibtData.fengate_weekday_times || {}
         };
 
         console.log("Formatted IBT Data:", formattedData);
@@ -56,6 +58,7 @@ async function getIBTData() {
         throw error;
     }
 }
+
 async function getMaskewData() {
     try {
         const querySnapshot = await getDocs(collection(db, 'maskew_avenue'));
@@ -110,8 +113,36 @@ async function getMarketData() {
     }
 }
 
+async function getFengateData() {
+    try {
+        const querySnapshot = await getDocs(collection(db, 'fengate'));
+        if (querySnapshot.empty) {
+            throw new Error('No Fengate data found');
+        }
+        return querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            // Format times
+            if (data.times) {
+                Object.keys(data.times).forEach(key => {
+                    data.times[key] = formatTime(data.times[key]);
+                });
+            }
+            if (data.saturday_times) {
+                Object.keys(data.saturday_times).forEach(key => {
+                    data.saturday_times[key] = formatTime(data.saturday_times[key]);
+                });
+            }
+            return data;
+        });
+    } catch (error) {
+        console.error('Error fetching Fengate data:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     getMaskewData,
     getMarketData,
+    getFengateData,
     getIBTData
 };
