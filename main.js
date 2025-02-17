@@ -2,9 +2,7 @@ const { app, BrowserWindow, Tray, Menu, Notification, dialog } = require('electr
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
-const isDev = require('electron-is-dev');
 const fs = require('fs');
-require('@electron/remote/main').initialize();
 
 let mainWindow = null;
 let tray = null;
@@ -61,61 +59,32 @@ autoUpdater.on('update-downloaded', (info) => {
     dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Update Ready',
-        message: 'Update downloaded. The application will restart to install the update.',
-        buttons: ['Restart Now']
+        message: 'Update downloaded. The application will close and install the update. Please restart the application manually after installation.',
+        buttons: ['Install and Close']
     }).then(() => {
         try {
-            log.info('Preparing to install update...');
-            
-            // Set updating flag
-            app.isUpdating = true;
-            
-            // Create a batch script to restart the app
-            const restartScript = `
-                @echo off
-                timeout /t 2 /nobreak > nul
-                start "" "${app.getPath('exe')}"
-                del "%~f0"
-            `;
-            
-            const scriptPath = path.join(app.getPath('temp'), 'restart.bat');
-            fs.writeFileSync(scriptPath, restartScript);
-            
-            log.info('Created restart script at:', scriptPath);
-
-            // Cleanup existing app
-            if (mainWindow) {
-                mainWindow.removeAllListeners('close');
-                mainWindow.hide();
-            }
-            
+            // Clean up
             if (tray) {
                 tray.destroy();
                 tray = null;
             }
 
-            // Execute restart script and quit
-            require('child_process').spawn(scriptPath, [], {
-                detached: true,
-                stdio: 'ignore',
-                shell: true
+            // Set flags
+            app.isQuitting = true;
+            
+            // Close all windows
+            BrowserWindow.getAllWindows().forEach(window => {
+                window.destroy();
             });
 
-            // Install update and quit
-            setImmediate(() => {
-                app.isQuitting = true;
-                autoUpdater.quitAndInstall(false, true);
-            });
-
+            // Force quit the app
+            app.quit();
+            
+            // Install update
+            autoUpdater.quitAndInstall(false, true);
         } catch (err) {
             log.error('Error during update installation:', err);
-            try {
-                // Fallback restart method
-                app.relaunch();
-                app.exit(0);
-            } catch (innerErr) {
-                log.error('Final restart attempt failed:', innerErr);
-            }
+            app.exit(0);
         }
     });
 });
@@ -139,15 +108,10 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true,
             webSecurity: false,
-            enableRemoteModule: true,
-            preload: path.join(app.getAppPath(), 'preload.js')
+            preload: path.join(__dirname, 'preload.js')
         },
         show: false
     });
-
-    require('@electron/remote/main').enable(mainWindow.webContents);
-    
-    log.info('Preload script path:', path.join(app.getAppPath(), 'preload.js'));
     
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
@@ -292,23 +256,8 @@ app.on('before-quit', () => {
 
 app.on('will-quit', () => {
     log.info('Application will quit...');
-    if (app.isUpdating) {
-        log.info('Application is updating, preparing for restart...');
-        app.relaunch();
-    }
 });
 
 app.on('quit', () => {
     log.info('Application has quit.');
-    if (app.isUpdating) {
-        log.info('Application quit due to update, restarting...');
-        app.relaunch();
-    }
-});
-
-app.on('ready-to-show', () => {
-    log.info('Application is ready to show');
-    if (mainWindow) {
-        mainWindow.show();
-    }
 });

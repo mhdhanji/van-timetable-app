@@ -1,6 +1,6 @@
 {
   "name": "van-timetable-app",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "MAP Van Timetable Application",
   "main": "main.js",
   "repository": {
@@ -18,9 +18,7 @@
   "dependencies": {
     "firebase": "^10.7.1",
     "electron-updater": "^6.1.7",
-    "electron-log": "^5.0.1",
-    "@electron/remote": "^2.1.2",
-    "electron-is-dev": "^2.0.0"
+    "electron-log": "^5.0.1"
   },
   "devDependencies": {
     "electron": "^25.9.8",
@@ -32,13 +30,6 @@
     "asar": true,
     "files": [
       "**/*",
-      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
-      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
-      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
-      "!.editorconfig",
-      "!**/._*",
-      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
-      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
       "main.js",
       "preload.js",
       "index.html",
