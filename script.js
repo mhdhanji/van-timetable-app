@@ -594,7 +594,7 @@ async function loadTimetableData() {
         const fengateLocations = [
             'OXYNEY ROAD',
             'BOONGATE',
-            'FENGATE ROAD',
+            'FENGATE ROAD'
         ];
 
         // Process Maskew Avenue data
