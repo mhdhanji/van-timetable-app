@@ -1,8 +1,12 @@
 {
   "name": "van-timetable-app",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "MAP Van Timetable Application",
   "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mhdhanji/van-timetable-app.git"
+  },
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --windows -p always",
@@ -23,7 +27,7 @@
   "build": {
     "appId": "com.vantimetable.app",
     "productName": "Van Timetable",
-    "asar": false,
+    "asar": true,
     "files": [
       "**/*"
     ],
@@ -32,7 +36,8 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "icon.png"
+      "icon": "icon.png",
+      "publish": ["github"]
     },
     "nsis": {
       "oneClick": false,

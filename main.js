@@ -14,6 +14,14 @@ autoUpdater.logger.transports.file.level = 'debug';
 autoUpdater.autoDownload = false;
 autoUpdater.allowDowngrade = false;
 
+// Set update feed URL
+autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'mhdhanji',
+    repo: 'van-timetable-app',
+    private: false
+});
+
 // Add logging events
 autoUpdater.on('checking-for-update', () => {
     log.info('Checking for update...');
@@ -38,7 +46,9 @@ autoUpdater.on('update-not-available', (info) => {
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
-    log.info(`Download progress: ${progressObj.percent}%`);
+    log.info(`Download speed: ${progressObj.bytesPerSecond}`);
+    log.info(`Downloaded ${progressObj.percent}%`);
+    log.info(`(${progressObj.transferred}/${progressObj.total})`);
 });
 
 autoUpdater.on('update-downloaded', (info) => {
@@ -55,10 +65,12 @@ autoUpdater.on('update-downloaded', (info) => {
 
 autoUpdater.on('error', (err) => {
     log.error('AutoUpdater error:', err);
+    log.error('Error details:', err.stack);
     dialog.showMessageBox(mainWindow, {
         type: 'error',
         title: 'Update Error',
-        message: 'Error updating application: ' + err.message
+        message: 'Error updating application. Check logs for details.',
+        detail: err.message
     });
 });
 
@@ -136,9 +148,15 @@ function createTray() {
     });
 }
 
+// Initialize app
 app.whenReady().then(() => {
     createWindow();
     createTray();
+
+    // Check for updates when app starts
+    autoUpdater.checkForUpdates().catch(err => {
+        log.error('Initial update check failed:', err);
+    });
 });
 
 app.on('window-all-closed', () => {
