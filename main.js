@@ -5,12 +5,14 @@ const log = require('electron-log');
 const AutoLaunch = require('auto-launch');
 const fs = require('fs');
 
+// Global Variables
 let mainWindow = null;
 let tray = null;
 let updateChecked = false;
 let powerSaveBlockerId = null;
 let isQuitting = false;
 let wakeupInterval = null;
+let hasShownTrayNotification = false;  // New notification control flag
 
 // Configure auto launcher
 const autoLauncher = new AutoLaunch({
@@ -83,7 +85,7 @@ function preventAppSuspension() {
     }
 }
 
-// Add logging events
+// Add logging events for auto-updater
 autoUpdater.on('checking-for-update', () => {
     log.info('Checking for update...');
 });
@@ -127,6 +129,7 @@ autoUpdater.on('update-downloaded', (info) => {
                 log.info('Preparing to install update...');
                 
                 isQuitting = true;
+                hasShownTrayNotification = false;  // Reset notification flag
                 
                 // Remove listeners and destroy tray first
                 if (mainWindow) {
@@ -223,20 +226,23 @@ function createWindow() {
         if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.show();
             preventAppSuspension();
+            hasShownTrayNotification = false;  // Reset notification flag on show
         }
     });
     
+    // Updated close handler with notification control
     mainWindow.on('close', function (event) {
         if (!isQuitting) {
             event.preventDefault();
             mainWindow.hide();
             
-            if (Notification.isSupported()) {
+            if (Notification.isSupported() && !hasShownTrayNotification) {
                 new Notification({
                     title: 'Van Timetable',
                     body: 'Application is still running in the system tray',
                     icon: path.join(__dirname, 'icon.png')
                 }).show();
+                hasShownTrayNotification = true;
             }
         }
         return false;
@@ -273,6 +279,7 @@ function createTray() {
             click: function () {
                 if (mainWindow && !mainWindow.isDestroyed()) {
                     mainWindow.show();
+                    hasShownTrayNotification = false;  // Reset notification flag when showing
                 }
             }
         },
@@ -303,6 +310,7 @@ function createTray() {
                 try {
                     log.info('Exiting application...');
                     isQuitting = true;
+                    hasShownTrayNotification = false;  // Reset notification flag
 
                     // Clear intervals and stop blockers
                     if (wakeupInterval) {
@@ -344,6 +352,7 @@ function createTray() {
     tray.on('click', () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.show();
+            hasShownTrayNotification = false;  // Reset notification flag on tray click
         }
     });
 }
@@ -371,6 +380,7 @@ app.whenReady().then(() => {
                 if (mainWindow.isMinimized()) mainWindow.restore();
                 mainWindow.show();
                 mainWindow.focus();
+                hasShownTrayNotification = false;  // Reset notification flag
             }
         });
         
@@ -388,6 +398,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         isQuitting = true;
+        hasShownTrayNotification = false;  // Reset notification flag
         app.quit();
     }
 });
@@ -401,6 +412,7 @@ app.on('activate', () => {
 app.on('before-quit', () => {
     log.info('Application is quitting...');
     isQuitting = true;
+    hasShownTrayNotification = false;  // Reset notification flag
     
     // Clear the wake-up interval
     if (wakeupInterval) {
@@ -423,9 +435,11 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
     log.info('Application will quit...');
     isQuitting = true;
+    hasShownTrayNotification = false;  // Reset notification flag
 });
 
 app.on('quit', () => {
     log.info('Application has quit.');
     isQuitting = true;
+    hasShownTrayNotification = false;  // Reset notification flag
 });
