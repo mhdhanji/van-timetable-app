@@ -1,6 +1,6 @@
 {
   "name": "van-timetable-app",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "MAP Van Timetable Application",
   "main": "main.js",
   "repository": {
@@ -28,6 +28,7 @@
   "build": {
     "appId": "com.vantimetable.app",
     "productName": "Van Timetable",
+    "publisher": "Mohammed Dhanji",
     "asar": true,
     "files": [
       "**/*",
@@ -46,7 +47,8 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "icon.png"
+      "icon": "icon.png",
+      "publisherName":"Mohammed Dhanji"
     },
     "nsis": {
       "oneClick": false,
