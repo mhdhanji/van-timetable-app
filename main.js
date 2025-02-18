@@ -12,7 +12,7 @@ let powerSaveBlockerId = null;
 let isQuitting = false;
 let wakeupInterval = null;
 let hasMinimizedToTray = false;
-let isDarkMode = false; // Add dark mode state
+let isDarkMode = false;
 
 // Configure auto launcher
 const autoLauncher = new AutoLaunch({
@@ -82,22 +82,6 @@ function checkForUpdates() {
     }
 }
 
-function forceWakeApp() {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        try {
-            const size = mainWindow.getSize();
-            mainWindow.setSize(size[0], size[1] + 1);
-            setTimeout(() => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                    mainWindow.setSize(size[0], size[1]);
-                }
-            }, 10);
-        } catch (error) {
-            log.error('Error in forceWakeApp:', error);
-        }
-    }
-}
-
 function preventAppSuspension() {
     if (powerSaveBlockerId === null) {
         powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
@@ -105,6 +89,29 @@ function preventAppSuspension() {
     
     if (mainWindow && mainWindow.webContents && !mainWindow.isDestroyed()) {
         mainWindow.webContents.setBackgroundThrottling(false);
+    }
+}
+
+// New wake-up function that doesn't cause visible resizing
+function forceWakeApp() {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        try {
+            // Send wake-up message to renderer
+            mainWindow.webContents.send('wake-up');
+            
+            // Ensure power save blocker is active
+            if (powerSaveBlockerId === null) {
+                powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+            }
+
+            // Prevent background throttling
+            mainWindow.webContents.setBackgroundThrottling(false);
+
+            // Optional: Force a minimal content refresh without resizing
+            mainWindow.webContents.invalidate();
+        } catch (error) {
+            log.error('Error in forceWakeApp:', error);
+        }
     }
 }
 
@@ -283,13 +290,6 @@ function createWindow() {
 
     mainWindow.webContents.on('preload-error', (event, preloadPath, error) => {
         log.error('Preload script error:', preloadPath, error);
-    });
-
-    // Add IPC handler for wake-up
-    ipcMain.on('wake-up', () => {
-        if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
-            forceWakeApp();
-        }
     });
 }
 
