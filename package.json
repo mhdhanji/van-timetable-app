@@ -46,22 +46,14 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "icon.png",
-      "artifactName": "${productName}-Setup-${version}.${ext}",
-      "publisherName": "Mohammed Dhanji"
+      "icon": "icon.png"
     },
     "nsis": {
-      "oneClick": true,
-      "allowToChangeInstallationDirectory": false,
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Van Timetable",
-      "deleteAppDataOnUninstall": false,
-      "allowElevation": true,
-      "runAfterFinish": true,
-      "installerIcon": "icon.png",
-      "uninstallerIcon": "icon.png",
-      "installerHeaderIcon": "icon.png"
+      "shortcutName": "Van Timetable"
     },
     "publish": {
       "provider": "github",

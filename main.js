@@ -30,6 +30,7 @@ autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = false;
 autoUpdater.allowDowngrade = false;
 autoUpdater.forceDevUpdateConfig = false;
+autoUpdater.autoRunAppAfterInstall = true;
 
 // Set update feed URL
 autoUpdater.setFeedURL({
@@ -157,6 +158,7 @@ autoUpdater.on('update-downloaded', (info) => {
                 // Clean up resources
                 if (mainWindow) {
                     mainWindow.removeAllListeners('close');
+                    mainWindow.hide();
                 }
                 
                 if (tray) {
@@ -174,18 +176,23 @@ autoUpdater.on('update-downloaded', (info) => {
                     powerSaveBlockerId = null;
                 }
 
-                // Set updating flag
+                // Set updating flag with restart info
                 const userDataPath = app.getPath('userData');
                 const updateFlagPath = path.join(userDataPath, 'updating.flag');
-                fs.writeFileSync(updateFlagPath, 'updating');
+                fs.writeFileSync(updateFlagPath, JSON.stringify({
+                    updating: true,
+                    timestamp: Date.now()
+                }));
 
-                // Quit and install
+                // Quit and install with restart
                 setImmediate(() => {
                     app.removeAllListeners('window-all-closed');
-                    autoUpdater.quitAndInstall(false, true);
+                    app.removeAllListeners('will-quit');
+                    autoUpdater.quitAndInstall(true, true);
                 });
             } catch (err) {
                 log.error('Error during update installation:', err);
+                app.relaunch();
                 app.exit(0);
             }
         });
@@ -400,15 +407,24 @@ app.whenReady().then(() => {
         
         if (fs.existsSync(updateFlagPath)) {
             try {
+                const updateData = JSON.parse(fs.readFileSync(updateFlagPath, 'utf8'));
                 fs.unlinkSync(updateFlagPath);
-                dialog.showMessageBox({
-                    type: 'info',
-                    title: 'Update Successful',
-                    message: `Application has been updated to version ${app.getVersion()}`,
-                    buttons: ['OK']
-                });
+                
+                if (updateData.timestamp && Date.now() - updateData.timestamp < 120000) {
+                    dialog.showMessageBox({
+                        type: 'info',
+                        title: 'Update Successful',
+                        message: `Application has been updated to version ${app.getVersion()}`,
+                        buttons: ['OK']
+                    });
+                }
             } catch (err) {
                 log.error('Error handling update flag:', err);
+                try {
+                    fs.unlinkSync(updateFlagPath);
+                } catch (e) {
+                    log.error('Error deleting update flag:', e);
+                }
             }
         }
         
