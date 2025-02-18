@@ -9,6 +9,25 @@ let lastDepartureNotificationTime = null;
 let lastFiveMinuteNotificationTime = null;
 let speechVolume = 1.0;
 
+// Dark mode initialization
+if (window.electron) {
+    window.electron.onDarkModeToggle((isDark) => {
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+            localStorage.setItem('darkMode', 'true');
+        } else {
+            document.body.classList.remove('dark-mode');
+            localStorage.setItem('darkMode', 'false');
+        }
+    });
+
+    // Check for saved preference
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode === 'true') {
+        document.body.classList.add('dark-mode');
+    }
+}
+
 // Utility Functions
 function showLoading(show) {
     const loader = document.querySelector('.loading-overlay');

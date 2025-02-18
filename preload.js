@@ -10,7 +10,9 @@ contextBridge.exposeInMainWorld('electron', {
         electron: () => process.versions.electron
     },
     // Add wake-up function
-    wakeUp: () => ipcRenderer.send('wake-up')
+    wakeUp: () => ipcRenderer.send('wake-up'),
+    // Add dark mode handler
+    onDarkModeToggle: (callback) => ipcRenderer.on('toggle-dark-mode', (_, isDark) => callback(isDark))
 });
 
 // Keep-alive handler

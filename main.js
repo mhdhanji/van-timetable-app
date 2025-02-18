@@ -12,6 +12,7 @@ let powerSaveBlockerId = null;
 let isQuitting = false;
 let wakeupInterval = null;
 let hasMinimizedToTray = false;
+let isDarkMode = false; // Add dark mode state
 
 // Configure auto launcher
 const autoLauncher = new AutoLaunch({
@@ -27,6 +28,29 @@ autoLauncher.isEnabled().then((isEnabled) => {
 }).catch((err) => {
     console.error('Auto Launch error:', err);
 });
+
+// Try to load saved dark mode preference
+try {
+    const userDataPath = app.getPath('userData');
+    const prefsPath = path.join(userDataPath, 'preferences.json');
+    if (fs.existsSync(prefsPath)) {
+        const prefs = JSON.parse(fs.readFileSync(prefsPath, 'utf8'));
+        isDarkMode = prefs.darkMode || false;
+    }
+} catch (err) {
+    log.error('Error loading preferences:', err);
+}
+
+// Save dark mode preference
+function savePreferences() {
+    try {
+        const userDataPath = app.getPath('userData');
+        const prefsPath = path.join(userDataPath, 'preferences.json');
+        fs.writeFileSync(prefsPath, JSON.stringify({ darkMode: isDarkMode }));
+    } catch (err) {
+        log.error('Error saving preferences:', err);
+    }
+}
 
 // Configure logging
 autoUpdater.logger = log;
@@ -195,6 +219,13 @@ function createWindow() {
         show: false
     });
 
+    // Apply saved dark mode state
+    if (isDarkMode) {
+        mainWindow.webContents.on('did-finish-load', () => {
+            mainWindow.webContents.send('toggle-dark-mode', true);
+        });
+    }
+
     // Clear any existing interval
     if (wakeupInterval) {
         clearInterval(wakeupInterval);
@@ -288,6 +319,18 @@ function createTray() {
                 } else {
                     autoLauncher.disable();
                 }
+            }
+        },
+        {
+            label: 'Dark Mode',
+            type: 'checkbox',
+            checked: isDarkMode,
+            click: function (menuItem) {
+                isDarkMode = menuItem.checked;
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('toggle-dark-mode', isDarkMode);
+                }
+                savePreferences();
             }
         },
         {

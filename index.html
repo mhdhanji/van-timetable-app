@@ -1,21 +1,23 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Van Timetable</title>
-        <link rel="stylesheet" href="styles.css">
-        <!-- Add Firebase directly -->
-        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-</head>
-<body>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAP VAN TIMES</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Add Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        /* Add smooth transitions for dark mode */
+        body {
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        table, th, td {
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+    </style>
 </head>
 <body>
     <div class="header">
@@ -113,6 +115,7 @@
             </table>
         </div>
     </div>
+
     <script>
         // Initialize Firebase
         const firebaseConfig = {
