@@ -20,32 +20,14 @@ const autoLauncher = new AutoLaunch({
     path: app.getPath('exe'),
 });
 
-// Configure logging
-log.transports.file.level = 'debug';
-autoUpdater.logger = log;
-log.info('App starting...');
-
-// Configure updater
-autoUpdater.autoDownload = false;
-autoUpdater.autoInstallOnAppQuit = false;
-autoUpdater.allowDowngrade = false;
-autoUpdater.forceDevUpdateConfig = false;
-autoUpdater.autoRunAppAfterInstall = true;
-
-// Set update feed URL
-autoUpdater.setFeedURL({
-    provider: 'github',
-    owner: 'mhdhanji',
-    repo: 'van-timetable-app',
-    private: false,
-    releaseType: 'release',
-    vPrefixedTagName: false
-});
-
 // Check and enable auto launch
 autoLauncher.isEnabled().then((isEnabled) => {
-    if (!isEnabled) autoLauncher.enable();
-}).catch(err => log.error('Auto Launch error:', err));
+    if (!isEnabled) {
+        autoLauncher.enable();
+    }
+}).catch((err) => {
+    console.error('Auto Launch error:', err);
+});
 
 // Try to load saved dark mode preference
 try {
@@ -59,6 +41,7 @@ try {
     log.error('Error loading preferences:', err);
 }
 
+// Save dark mode preference
 function savePreferences() {
     try {
         const userDataPath = app.getPath('userData');
@@ -69,9 +52,28 @@ function savePreferences() {
     }
 }
 
+// Configure logging
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'debug';
+
+// Configure updater
+autoUpdater.autoDownload = false;
+autoUpdater.allowDowngrade = false;
+autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.forceDevUpdateConfig = false;
+
+// Set update feed URL
+autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'mhdhanji',
+    repo: 'van-timetable-app',
+    private: false,
+    releaseType: 'release',
+    vPrefixedTagName: false
+});
+
 function checkForUpdates() {
     if (!updateChecked) {
-        log.info('Checking for updates...');
         updateChecked = true;
         autoUpdater.checkForUpdates().catch(err => {
             log.error('Error checking for updates:', err);
@@ -85,21 +87,27 @@ function preventAppSuspension() {
         powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
     }
     
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && mainWindow.webContents && !mainWindow.isDestroyed()) {
         mainWindow.webContents.setBackgroundThrottling(false);
     }
 }
 
+// New wake-up function that doesn't cause visible resizing
 function forceWakeApp() {
     if (mainWindow && !mainWindow.isDestroyed()) {
         try {
+            // Send wake-up message to renderer
             mainWindow.webContents.send('wake-up');
             
+            // Ensure power save blocker is active
             if (powerSaveBlockerId === null) {
                 powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
             }
 
+            // Prevent background throttling
             mainWindow.webContents.setBackgroundThrottling(false);
+
+            // Optional: Force a minimal content refresh without resizing
             mainWindow.webContents.invalidate();
         } catch (error) {
             log.error('Error in forceWakeApp:', error);
@@ -107,7 +115,7 @@ function forceWakeApp() {
     }
 }
 
-// Update event handlers
+// Add logging events
 autoUpdater.on('checking-for-update', () => {
     log.info('Checking for update...');
 });
@@ -118,17 +126,11 @@ autoUpdater.on('update-available', (info) => {
         dialog.showMessageBox(mainWindow, {
             type: 'info',
             title: 'Update Available',
-            message: `Version ${info.version} is available. Would you like to download and install it now?`,
-            buttons: ['Yes', 'No'],
-            defaultId: 0,
-            cancelId: 1
+            message: `Version ${info.version} is available. Would you like to download it now?`,
+            buttons: ['Yes', 'No']
         }).then((result) => {
             if (result.response === 0) {
-                autoUpdater.downloadUpdate().catch(err => {
-                    log.error('Error downloading update:', err);
-                    dialog.showErrorBox('Update Error', 
-                        'Failed to download update. Please try again later.');
-                });
+                autoUpdater.downloadUpdate();
             }
         });
     }
@@ -139,7 +141,9 @@ autoUpdater.on('update-not-available', (info) => {
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
-    log.info(`Download progress: ${progressObj.percent}%`);
+    log.info(`Download speed: ${progressObj.bytesPerSecond}`);
+    log.info(`Downloaded ${progressObj.percent}%`);
+    log.info(`(${progressObj.transferred}/${progressObj.total})`);
 });
 
 autoUpdater.on('update-downloaded', (info) => {
@@ -148,17 +152,17 @@ autoUpdater.on('update-downloaded', (info) => {
         dialog.showMessageBox(mainWindow, {
             type: 'info',
             title: 'Update Ready',
-            message: 'Update downloaded. The application will restart to install the update.',
-            buttons: ['Restart Now']
+            message: 'Update downloaded. The application will close to install the update. Please wait for the installer to appear.',
+            buttons: ['Close and Install']
         }).then(() => {
             try {
                 log.info('Preparing to install update...');
+                
                 isQuitting = true;
                 
-                // Clean up resources
+                // Remove listeners and destroy tray first
                 if (mainWindow) {
                     mainWindow.removeAllListeners('close');
-                    mainWindow.hide();
                 }
                 
                 if (tray) {
@@ -166,33 +170,29 @@ autoUpdater.on('update-downloaded', (info) => {
                     tray = null;
                 }
 
+                // Clear intervals
                 if (wakeupInterval) {
                     clearInterval(wakeupInterval);
                     wakeupInterval = null;
                 }
 
-                if (powerSaveBlockerId !== null) {
-                    powerSaveBlocker.stop(powerSaveBlockerId);
-                    powerSaveBlockerId = null;
-                }
-
-                // Set updating flag with restart info
-                const userDataPath = app.getPath('userData');
-                const updateFlagPath = path.join(userDataPath, 'updating.flag');
-                fs.writeFileSync(updateFlagPath, JSON.stringify({
-                    updating: true,
-                    timestamp: Date.now()
-                }));
-
-                // Quit and install with restart
-                setImmediate(() => {
-                    app.removeAllListeners('window-all-closed');
-                    app.removeAllListeners('will-quit');
-                    autoUpdater.quitAndInstall(true, true);
+                // Close all windows
+                BrowserWindow.getAllWindows().forEach(window => {
+                    window.destroy();
                 });
+
+                // Force close the app completely
+                setImmediate(() => {
+                    app.quit();
+                    // Wait a moment before installing
+                    setTimeout(() => {
+                        autoUpdater.quitAndInstall(true, true);
+                    }, 1000);
+                });
+
             } catch (err) {
                 log.error('Error during update installation:', err);
-                app.relaunch();
+                // Force quit if error occurs
                 app.exit(0);
             }
         });
@@ -201,11 +201,12 @@ autoUpdater.on('update-downloaded', (info) => {
 
 autoUpdater.on('error', (err) => {
     log.error('AutoUpdater error:', err);
+    log.error('Error details:', err.stack);
     if (mainWindow && !mainWindow.isDestroyed()) {
         dialog.showMessageBox(mainWindow, {
             type: 'error',
             title: 'Update Error',
-            message: 'Error updating application. Please try again later.',
+            message: 'Error updating application. Check logs for details.',
             detail: err.message
         });
     }
@@ -232,29 +233,33 @@ function createWindow() {
         });
     }
 
+    // Clear any existing interval
     if (wakeupInterval) {
         clearInterval(wakeupInterval);
         wakeupInterval = null;
     }
 
+    // Set up wake-up interval
     wakeupInterval = setInterval(() => {
         if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
             forceWakeApp();
         }
     }, 30000);
 
-    mainWindow.loadFile('index.html');
-
     mainWindow.on('minimize', () => {
-        if (!isQuitting) preventAppSuspension();
+        if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
+            preventAppSuspension();
+        }
     });
     
     mainWindow.on('hide', () => {
-        if (!isQuitting) preventAppSuspension();
+        if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
+            preventAppSuspension();
+        }
     });
     
     mainWindow.once('ready-to-show', () => {
-        if (!isQuitting) {
+        if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.show();
             preventAppSuspension();
         }
@@ -275,6 +280,16 @@ function createWindow() {
             }
         }
         return false;
+    });
+
+    mainWindow.loadFile('index.html');
+    
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        log.error('Page failed to load:', errorDescription);
+    });
+
+    mainWindow.webContents.on('preload-error', (event, preloadPath, error) => {
+        log.error('Preload script error:', preloadPath, error);
     });
 }
 
@@ -334,6 +349,7 @@ function createTray() {
                     log.info('Exiting application...');
                     isQuitting = true;
 
+                    // Clear intervals and stop blockers
                     if (wakeupInterval) {
                         clearInterval(wakeupInterval);
                         wakeupInterval = null;
@@ -344,6 +360,7 @@ function createTray() {
                         powerSaveBlockerId = null;
                     }
 
+                    // Cleanup window
                     if (mainWindow) {
                         mainWindow.removeAllListeners('close');
                         mainWindow.hide();
@@ -351,6 +368,7 @@ function createTray() {
                         mainWindow = null;
                     }
 
+                    // Cleanup tray
                     if (tray) {
                         tray.destroy();
                         tray = null;
@@ -400,38 +418,12 @@ app.whenReady().then(() => {
                 mainWindow.focus();
             }
         });
-
-        // Check if we're restarting after an update
-        const userDataPath = app.getPath('userData');
-        const updateFlagPath = path.join(userDataPath, 'updating.flag');
-        
-        if (fs.existsSync(updateFlagPath)) {
-            try {
-                const updateData = JSON.parse(fs.readFileSync(updateFlagPath, 'utf8'));
-                fs.unlinkSync(updateFlagPath);
-                
-                if (updateData.timestamp && Date.now() - updateData.timestamp < 120000) {
-                    dialog.showMessageBox({
-                        type: 'info',
-                        title: 'Update Successful',
-                        message: `Application has been updated to version ${app.getVersion()}`,
-                        buttons: ['OK']
-                    });
-                }
-            } catch (err) {
-                log.error('Error handling update flag:', err);
-                try {
-                    fs.unlinkSync(updateFlagPath);
-                } catch (e) {
-                    log.error('Error deleting update flag:', e);
-                }
-            }
-        }
         
         createWindow();
         createTray();
         checkForUpdates();
         
+        // Only call preventAppSuspension after window is created
         if (mainWindow && !mainWindow.isDestroyed()) {
             preventAppSuspension();
         }
@@ -456,6 +448,7 @@ app.on('before-quit', () => {
     isQuitting = true;
     hasMinimizedToTray = false;
     
+    // Clear the wake-up interval
     if (wakeupInterval) {
         clearInterval(wakeupInterval);
         wakeupInterval = null;
@@ -466,6 +459,7 @@ app.on('before-quit', () => {
         powerSaveBlockerId = null;
     }
 
+    // Cleanup tray
     if (tray) {
         tray.destroy();
         tray = null;

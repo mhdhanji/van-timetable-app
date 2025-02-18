@@ -28,7 +28,6 @@
   "build": {
     "appId": "com.vantimetable.app",
     "productName": "Van Timetable",
-    "publisher": "Mohammed Dhanji",
     "asar": true,
     "files": [
       "**/*",
