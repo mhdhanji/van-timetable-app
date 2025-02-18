@@ -71,8 +71,6 @@
       "publishAutoUpdate": true,
       "private": false,
       "vPrefixedTagName": false
-    },
-    "afterSign": "scripts/notarize.js",
-    "afterPack": "scripts/afterPack.js"
+    }
   }
 }
