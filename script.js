@@ -28,6 +28,24 @@ if (window.electron) {
     }
 }
 
+// Add these functions near the top of script.js
+function saveLastViewedTable(tableName) {
+    try {
+        localStorage.setItem('lastViewedTable', tableName);
+    } catch (err) {
+        console.error('Error saving last viewed table:', err);
+    }
+}
+
+function getLastViewedTable() {
+    try {
+        return localStorage.getItem('lastViewedTable') || 'maskew';
+    } catch (err) {
+        console.error('Error getting last viewed table:', err);
+        return 'maskew';
+    }
+}
+
 // Utility Functions
 function showLoading(show) {
     const loader = document.querySelector('.loading-overlay');
@@ -245,10 +263,13 @@ function showTable() {
     // Add active class to selected section
     if (select.value === 'maskew') {
         maskewSection.classList.add('active');
+        saveLastViewedTable('maskew');
     } else if (select.value === 'market') {
         marketSection.classList.add('active');
+        saveLastViewedTable('market');
     } else if (select.value === 'fengate') {
         fengateSection.classList.add('active');
+        saveLastViewedTable('fengate');
     }
 
     // Reset all checks to force rechecking
