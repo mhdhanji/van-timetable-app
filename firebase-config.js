@@ -2,13 +2,13 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore } = require('firebase/firestore');
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCYMHp-FO1TH8kGIOE42tfNal3sGXV8l6k",
-    authDomain: "map-van-times-1f688.firebaseapp.com",
-    projectId: "map-van-times-1f688",
-    storageBucket: "map-van-times-1f688.firebasestorage.app",
-    messagingSenderId: "169514675608",
-    appId: "1:169514675608:web:2ea27cd6dda1a32f47cfed",
-    measurementId: "G-HH94TKMPGL"
+    apiKey: "AIzaSyBkkSet1OXBhkJhdcdphWG_3yFUJFWrujI",
+    authDomain: "map-van-times.firebaseapp.com",
+    projectId: "map-van-times",
+    storageBucket: "map-van-times.firebasestorage.app",
+    messagingSenderId: "967630671909",
+    appId: "1:967630671909:web:8985ce0e4f1018f7d7efcc",
+    measurementId: "G-JBS29H6ZZ5"
 };
 
 console.log('Initializing Firebase...');
