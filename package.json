@@ -11,7 +11,8 @@
     "start": "electron .",
     "build:win": "electron-builder --windows -p always",
     "build:mac": "electron-builder --mac",
-    "publish": "electron-builder --windows -p always"
+    "publish": "electron-builder --windows -p always",
+    "publish:mac": "electron-builder --mac -p always"
   },
   "author": "Mohammed Dhanji",
   "license": "ISC",
@@ -47,6 +48,27 @@
     "win": {
       "target": "nsis",
       "icon": "icon.png"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.utilities",
+      "icon": "icon.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
