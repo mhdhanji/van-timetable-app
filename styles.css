@@ -165,6 +165,10 @@ body.dark-mode .slider {
     background-color: #555;
 }
 
+body.dark-mode input:checked + .slider {
+    background-color: #2196F3;
+}
+
 body.dark-mode .toggle-label {
     color: #fff;
 }
