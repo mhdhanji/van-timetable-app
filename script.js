@@ -8,6 +8,7 @@ let fiveMinuteWarningActive = false;
 let lastDepartureNotificationTime = null;
 let lastFiveMinuteNotificationTime = null;
 let speechVolume = 1.0;
+let useWeekendTimes = false; // ADD THIS LINE
 
 // Dark mode initialization
 if (window.electron) {
@@ -632,8 +633,8 @@ async function loadTimetableData() {
         const fengateData = await window.firebaseApi.getFengateData(); // Add Fengate data
         const ibtData = await window.firebaseApi.getIBTData();
 
-        const today = new Date();
-        const isSaturday = today.getDay() === 6;
+        // Use the toggle state instead of checking actual day
+        const isSaturday = useWeekendTimes;
 
         const maskewLocations = [
             'ST IVES',
@@ -822,6 +823,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     await requestNotificationPermission();
     document.getElementById('table-select').addEventListener('change', showTable);
     document.getElementById('refresh-button').addEventListener('click', loadTimetableData);
+    
+    // Initialize the toggle based on current day
+    const dayToggle = document.getElementById('day-toggle');
+
+    // Save toggle state to sessionStorage (clears when app closes)
+    function saveToggleState(isWeekend) {
+        try {
+            sessionStorage.setItem('useWeekendTimes', isWeekend ? 'true' : 'false');
+        } catch (err) {
+            console.error('Error saving toggle state:', err);
+        }
+    }
+
+    // Get saved toggle state from sessionStorage
+    function getToggleState() {
+        try {
+            const savedState = sessionStorage.getItem('useWeekendTimes');
+            return savedState === 'true';
+        } catch (err) {
+            console.error('Error getting toggle state:', err);
+            return false;
+        }
+    }
+
+    // Set toggle based on saved state or current day
+    const today = new Date();
+    const isSaturday = today.getDay() === 6;
+    useWeekendTimes = getToggleState() || isSaturday;
+    dayToggle.checked = useWeekendTimes;
+
+    // Add event listener for toggle
+    dayToggle.addEventListener('change', function() {
+        useWeekendTimes = this.checked;
+        saveToggleState(useWeekendTimes);
+        loadTimetableData(); // Reload the timetable with new setting
+    });
     
     // Volume control keyboard events
     document.addEventListener('keydown', (event) => {
