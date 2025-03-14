@@ -716,34 +716,36 @@ function checkDepartures() {
             van.tableId === activeTable.id && van.location !== 'IBT'
         );
 
-        const departureMessage = document.getElementById('departure-message');
-        const mainMessage = departureMessage.querySelector('.main-message');
-        const detailMessage = departureMessage.querySelector('.detail-message');
-        
         if (activeActualDepartures.length > 0 && timeKey !== lastDepartureCheck) {
+            const departureMessage = document.getElementById('departure-message');
+            const mainMessage = departureMessage.querySelector('.main-message');
+            const detailMessage = departureMessage.querySelector('.detail-message');
+            
             let spokenMessage;
             if (activeActualDepartures.length === 1) {
                 const van = activeActualDepartures[0];
-                spokenMessage = `  Your attention please. The van to ${van.location} has now departed at ${currentTime}`;
+                const spokenTime = formatTimeForSpeech(currentTime);
+                spokenMessage = `  Your attention please. The van to ${van.location} has now departed at ${spokenTime}`;
             } else {
                 const locations = activeActualDepartures.map(van => van.location).join(' and ');
-                spokenMessage = `  Your attention please. Multiple vans have now departed at ${currentTime}. Vans to ${locations} have left`;
+                const spokenTime = formatTimeForSpeech(currentTime);
+                spokenMessage = `  Your attention please. Multiple vans have now departed at ${spokenTime}. Vans to ${locations} have left`;
             }
             
             speakDepartureMessage(spokenMessage);
-            
+                
             // On-screen message
             mainMessage.textContent = activeActualDepartures.length > 1 ? 
                 'MULTIPLE VANS DEPARTED' : 
                 'VAN DEPARTED';
-                
+                    
             const details = activeActualDepartures.map(van => 
                 `${van.location}${van.suffix ? ` (${van.suffix})` : ''}`
             ).join(', ');
             detailMessage.textContent = details;
-            
+                
             departureMessage.classList.add('active');
-            
+                
             setTimeout(() => {
                 departureMessage.classList.remove('active');
             }, 60000);
@@ -804,22 +806,15 @@ function checkUpcomingDepartures() {
 
             let spokenMessage;
             if (activeActualUpcomingDepartures.length === 1) {
-                mainMessage.textContent = '5 MINUTES TO DEPARTURE';
-                detailMessage.textContent = `${activeActualUpcomingDepartures[0].location} departing at ${activeActualUpcomingDepartures[0].time}`;
-                
-                spokenMessage = `  Your attention please. The van to ${activeActualUpcomingDepartures[0].location} will be departing in 5 minutes at ${activeActualUpcomingDepartures[0].time}`;
+                const spokenTime = formatTimeForSpeech(activeActualUpcomingDepartures[0].time);
+                spokenMessage = `  Your attention please. The van to ${activeActualUpcomingDepartures[0].location} will be departing in 5 minutes at ${spokenTime}`;
             } else {
-                mainMessage.textContent = '5 MINUTES TO MULTIPLE DEPARTURES';
-                detailMessage.textContent = activeActualUpcomingDepartures
-                    .map(dep => `${dep.location} at ${dep.time}`)
-                    .join(', ');
-                
                 const locationList = activeActualUpcomingDepartures
                     .map(dep => dep.location)
                     .join(' and ');
-                
-                spokenMessage = `  Your attention please. Multiple vans will be departing in 5 minutes. Vans to ${locationList} will depart at ${activeActualUpcomingDepartures[0].time}`;
-            }
+                const spokenTime = formatTimeForSpeech(activeActualUpcomingDepartures[0].time);
+                spokenMessage = `  Your attention please. Multiple vans will be departing in 5 minutes. Vans to ${locationList} will depart at ${spokenTime}`;
+            }       
             
             speakWarningMessage(spokenMessage);
             
@@ -1074,6 +1069,32 @@ async function loadTimetableData() {
         showLoading(false);
     }
 }
+
+// Add this utility function to format time for speech
+function formatTimeForSpeech(timeStr) {
+    if (!timeStr) return '';
+    
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    
+    // Convert to 12-hour format
+    let hour = hours % 12;
+    if (hour === 0) hour = 12; // Convert 0 to 12 for 12 AM/PM
+    
+    // Format minutes
+    let minuteStr = '';
+    if (minutes > 0) {
+      minuteStr = ` ${minutes}`;
+      if (minutes < 10) {
+        // For single digit minutes, we want "oh five" not "five"
+        minuteStr = ` oh ${minutes}`;
+      }
+    }
+    
+    // Add AM/PM
+    const period = hours >= 12 ? 'PM' : 'AM';
+    
+    return `${hour}${minuteStr} ${period}`;
+  }
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
