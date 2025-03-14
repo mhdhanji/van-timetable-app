@@ -1080,11 +1080,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     await requestNotificationPermission();
     document.getElementById('table-select').addEventListener('change', showTable);
     document.getElementById('refresh-button').addEventListener('click', async () => {
-        // Force reload data from files on refresh
-        await dataManager.reloadData();
-        loadTimetableData();
+        // Check for remote updates instead of reloading from local files
+        const updateAvailable = await dataManager.checkForRemoteUpdates();
+        if (updateAvailable) {
+            if (confirm('New schedule data is available. Download now?')) {
+                const updated = await dataManager.downloadLatestData();
+                if (updated) {
+                    // Reload the timetable with new data
+                    loadTimetableData();
+                }
+            }
+        } else {
+            alert('You already have the latest schedule data.');
+        }
     });
-    
     // Initialize the toggle based on current day
     const dayToggle = document.getElementById('day-toggle');
 
@@ -1206,43 +1215,4 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error in initial load:', error);
         showError("Failed to load initial data. Please refresh the page.");
     });
-    // Add this inside the DOMContentLoaded event listener
-    document.getElementById('check-updates-button').addEventListener('click', async () => {
-        const updateAvailable = await dataManager.checkForRemoteUpdates();
-        if (updateAvailable) {
-            if (confirm('New schedule data is available. Download now?')) {
-                const updated = await dataManager.downloadLatestData();
-                if (updated) {
-                    // Reload the timetable with new data
-                    loadTimetableData();
-                }
-            }
-        } else {
-        alert('You already have the latest schedule data.');
-        }
-    });
-
-
-    // Set up 7 PM refresh
-    function scheduleNextRefresh() {
-        const now = new Date();
-        const next7PM = new Date(now);
-        next7PM.setHours(19, 0, 0, 0);
-
-        if (now > next7PM) {
-            next7PM.setDate(next7PM.getDate() + 1);
-        }
-
-        const delay = next7PM - now;
-
-        setTimeout(() => {
-            dataManager.reloadData().then(() => {
-                loadTimetableData();
-                console.log('Performed 7 PM data refresh');
-            });
-            scheduleNextRefresh();
-        }, delay);
-    }
-
-    scheduleNextRefresh();
 });
