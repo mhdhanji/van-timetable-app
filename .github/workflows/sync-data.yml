@@ -1,0 +1,72 @@
+name: Sync Data Branch
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'data/**'
+      - 'version.json'
+
+jobs:
+  sync-data-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Configure Git
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+      - name: Check if data branch exists
+        id: check-branch
+        run: |
+          if git ls-remote --heads origin data | grep data; then
+            echo "Data branch exists"
+            echo "branch_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Data branch does not exist"
+            echo "branch_exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Create data branch if it doesn't exist
+        if: steps.check-branch.outputs.branch_exists == 'false'
+        run: |
+          git checkout -b data
+          git push -u origin data
+          
+      - name: Checkout data branch
+        if: steps.check-branch.outputs.branch_exists == 'true'
+        run: |
+          git fetch origin data
+          git checkout data
+          
+      - name: Copy data files from main
+        run: |
+          # Make directories if they don't exist
+          mkdir -p data
+          
+          # Get data files from main branch
+          git checkout main -- data/
+          git checkout main -- version.json
+          
+      - name: Commit and push changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            git add data/
+            git add version.json
+            git commit -m "Sync data from main branch [skip ci]"
+            git push origin data
+            echo "Data files synced to data branch"
+          else
+            echo "No changes to sync"
+          fi
