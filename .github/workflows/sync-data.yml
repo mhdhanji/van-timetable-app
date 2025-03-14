@@ -30,7 +30,7 @@ jobs:
       - name: Check if data branch exists
         id: check-branch
         run: |
-          if git ls-remote --heads origin data | grep data; then
+          if git ls-remote --heads origin refs/heads/data | grep data; then
             echo "Data branch exists"
             echo "branch_exists=true" >> $GITHUB_OUTPUT
           else
@@ -47,17 +47,38 @@ jobs:
       - name: Checkout data branch
         if: steps.check-branch.outputs.branch_exists == 'true'
         run: |
-          git fetch origin data
-          git checkout data
+          # Rename local data directory if it exists to avoid conflict
+          if [ -d "data" ]; then
+            mv data data_temp
+          fi
+          
+          # Explicitly checkout remote branch
+          git fetch origin
+          git checkout --track origin/data
+          
+          # Restore data directory if it was renamed
+          if [ -d "data_temp" ]; then
+            rm -rf data
+            mv data_temp data
+          fi
           
       - name: Copy data files from main
         run: |
+          # Save current branch
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          
           # Make directories if they don't exist
           mkdir -p data
           
-          # Get data files from main branch
-          git checkout main -- data/
-          git checkout main -- version.json
+          # Get data files from main branch (using explicit path)
+          git checkout main -- ./data/ || echo "Failed to checkout data directory"
+          git checkout main -- ./version.json || echo "Failed to checkout version.json"
+          
+          # List files to verify
+          echo "Files after checkout:"
+          ls -la
+          echo "Data directory contents:"
+          ls -la data/ || echo "Data directory not found"
           
       - name: Commit and push changes
         run: |
