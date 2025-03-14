@@ -1098,6 +1098,18 @@ function formatTimeForSpeech(timeStr) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+    // Add this inside your DOMContentLoaded event listener
+    if (window.electron) {
+        window.electron.onDarkModeToggle((isDark) => {
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+            console.log('Dark mode toggled:', isDark);
+        });
+    }
+
     await requestNotificationPermission();
     document.getElementById('table-select').addEventListener('change', showTable);
     document.getElementById('refresh-button').addEventListener('click', async () => {
