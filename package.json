@@ -37,7 +37,10 @@
       "index.html",
       "styles.css",
       "script.js",
-      "icon.png"
+      "icon.png",
+      "data-manager.js",
+      "data/**/*",
+      "version.json"
     ],
     "asarUnpack": [
       "preload.js"

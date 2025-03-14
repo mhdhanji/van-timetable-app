@@ -8,28 +8,29 @@ let fiveMinuteWarningActive = false;
 let lastDepartureNotificationTime = null;
 let lastFiveMinuteNotificationTime = null;
 let speechVolume = 1.0;
-let useWeekendTimes = false; // ADD THIS LINE
+let useWeekendTimes = false;
 
-// Dark mode initialization
-if (window.electron) {
-    window.electron.onDarkModeToggle((isDark) => {
-        if (isDark) {
-            document.body.classList.add('dark-mode');
-            localStorage.setItem('darkMode', 'true');
-        } else {
-            document.body.classList.remove('dark-mode');
-            localStorage.setItem('darkMode', 'false');
-        }
-    });
-
-    // Check for saved preference
-    const savedDarkMode = localStorage.getItem('darkMode');
-    if (savedDarkMode === 'true') {
-        document.body.classList.add('dark-mode');
+// Create a replacement for the Firebase API using our data manager
+window.firebaseApi = {
+    getMaskewData: async () => {
+        await dataManager.initialize();
+        return dataManager.getMaskewData();
+    },
+    getMarketData: async () => {
+        await dataManager.initialize();
+        return dataManager.getMarketData();
+    },
+    getFengateData: async () => {
+        await dataManager.initialize();
+        return dataManager.getFengateData();
+    },
+    getIBTData: async () => {
+        await dataManager.initialize();
+        return dataManager.getIBTData();
     }
-}
+};
 
-// Add these functions near the top of script.js
+// Local storage functions
 function saveLastViewedTable(tableName) {
     try {
         localStorage.setItem('lastViewedTable', tableName);
@@ -66,7 +67,7 @@ function showError(message) {
         errorDiv.classList.remove('active');
     }
 }
-// Add these two new functions here
+
 function setAnnouncementVolume(newVolume) {
     // Ensure volume stays between 0 and 1
     speechVolume = Math.max(0, Math.min(1, newVolume));
@@ -104,7 +105,7 @@ function showVolumeIndicator() {
     }, 2000);
 }
 
-// Add the new notification functions here
+// Notification functions
 async function requestNotificationPermission() {
     if (!('Notification' in window)) {
         console.log('This browser does not support desktop notifications');
@@ -337,9 +338,6 @@ function getTimeStatus(timeStr) {
     const timeToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
     const diffMinutes = (timeToday - now) / (1000 * 60);
 
-    // Debug logging
-    console.log(`Time: ${timeStr}, Diff Minutes: ${diffMinutes}`);
-
     if (diffMinutes < 0) {
         return 'past';
     } else if (diffMinutes <= 5) {
@@ -360,6 +358,314 @@ function createEmptyTimeGrid(locations) {
     return grid;
 }
 
+// Function to normalize time format for comparisons
+function normalizeTimeFormat(timeStr) {
+    if (!timeStr) return '';
+    
+    // Extract hours and minutes regardless of format
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    
+    // Return standardized format with leading zeros
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+// Function to get active departures based on actual day
+async function getActualDayDepartures(currentTime) {
+    const now = new Date();
+    const isActuallyWeekend = now.getDay() === 6; // 6 is Saturday
+    const normalizedCurrentTime = normalizeTimeFormat(currentTime);
+    
+    console.log(`Checking actual day departures for time: ${normalizedCurrentTime}, is weekend: ${isActuallyWeekend}`);
+    
+    try {
+        // Get appropriate data
+        const maskewData = await window.firebaseApi.getMaskewData();
+        const marketData = await window.firebaseApi.getMarketData();
+        const fengateData = await window.firebaseApi.getFengateData();
+        const ibtData = await window.firebaseApi.getIBTData();
+        
+        let allDepartedVans = [];
+        
+        // Process Maskew Avenue
+        const tableName = 'Maskew Avenue';
+        maskewData.forEach(doc => {
+            const location = doc.stop_name.toUpperCase();
+            if (location !== 'IBT') {
+                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
+                if (times) {
+                    Object.values(times).forEach(time => {
+                        const normalizedTime = normalizeTimeFormat(time);
+                        if (normalizedTime === normalizedCurrentTime) {
+                            allDepartedVans.push({
+                                location: location,
+                                suffix: '',
+                                depot: tableName,
+                                tableId: 'maskew-section'
+                            });
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Process Market Deeping
+        const marketTableName = 'Market Deeping';
+        marketData.forEach(doc => {
+            const location = doc.stop_name.toUpperCase();
+            if (location !== 'IBT') {
+                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
+                if (times) {
+                    Object.values(times).forEach(time => {
+                        const normalizedTime = normalizeTimeFormat(time);
+                        if (normalizedTime === normalizedCurrentTime) {
+                            allDepartedVans.push({
+                                location: location,
+                                suffix: '',
+                                depot: marketTableName,
+                                tableId: 'market-section'
+                            });
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Process Fengate
+        const fengateTableName = 'Fengate';
+        fengateData.forEach(doc => {
+            const location = doc.stop_name.toUpperCase();
+            if (location !== 'IBT') {
+                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
+                if (times) {
+                    Object.values(times).forEach(time => {
+                        const normalizedTime = normalizeTimeFormat(time);
+                        if (normalizedTime === normalizedCurrentTime) {
+                            allDepartedVans.push({
+                                location: location,
+                                suffix: '',
+                                depot: fengateTableName,
+                                tableId: 'fengate-section'
+                            });
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Process IBT times
+        const maskewIBTTimes = isActuallyWeekend ? 
+            ibtData.maskew_avenue_saturday_times : 
+            ibtData.maskew_avenue_weekday_times;
+            
+        for (let i = 0; i < Object.keys(maskewIBTTimes).length; i++) {
+            const time = maskewIBTTimes[i];
+            const normalizedTime = normalizeTimeFormat(time);
+            if (normalizedTime === normalizedCurrentTime) {
+                allDepartedVans.push({
+                    location: 'IBT',
+                    suffix: 'HD',
+                    depot: 'Maskew Avenue',
+                    tableId: 'maskew-section'
+                });
+            }
+        }
+        
+        const marketIBTTimes = isActuallyWeekend ? 
+            ibtData.market_deeping_saturday_times : 
+            ibtData.market_deeping_weekday_times;
+            
+        for (let i = 0; i < Object.keys(marketIBTTimes).length; i++) {
+            const time = marketIBTTimes[i];
+            const normalizedTime = normalizeTimeFormat(time);
+            if (normalizedTime === normalizedCurrentTime) {
+                allDepartedVans.push({
+                    location: 'IBT',
+                    suffix: 'MD',
+                    depot: 'Market Deeping',
+                    tableId: 'market-section'
+                });
+            }
+        }
+        
+        if (allDepartedVans.length > 0) {
+            console.log('Found actual day departures:', allDepartedVans.map(v => `${v.depot}-${v.location} at ${normalizedCurrentTime}`));
+        }
+        
+        return allDepartedVans;
+    } catch (error) {
+        console.error('Error getting actual day departures:', error);
+        return [];
+    }
+}
+
+// Function to get upcoming departures based on actual day
+async function getActualDayUpcomingDepartures() {
+    const now = new Date();
+    const isActuallyWeekend = now.getDay() === 6; // 6 is Saturday
+    const currentTime = now.getTime();
+    
+    try {
+        // Get appropriate data
+        const maskewData = await window.firebaseApi.getMaskewData();
+        const marketData = await window.firebaseApi.getMarketData();
+        const fengateData = await window.firebaseApi.getFengateData();
+        const ibtData = await window.firebaseApi.getIBTData();
+        
+        let allUpcomingDepartures = [];
+        
+        // Process Maskew Avenue
+        const tableName = 'Maskew Avenue';
+        maskewData.forEach(doc => {
+            const location = doc.stop_name.toUpperCase();
+            if (location !== 'IBT') {
+                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
+                if (times) {
+                    Object.values(times).forEach(time => {
+                        const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
+                        const departureTime = new Date(now);
+                        departureTime.setHours(hours, minutes, 0, 0);
+                        
+                        const timeDiff = departureTime - currentTime;
+                        const diffMinutes = timeDiff / (1000 * 60);
+                        
+                        // Widened time window for more reliable detection
+                        if (diffMinutes >= 4.95 && diffMinutes <= 5.05) {
+                            allUpcomingDepartures.push({
+                                location: location,
+                                time: time,
+                                depot: tableName,
+                                tableId: 'maskew-section'
+                            });
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Process Market Deeping
+        const marketTableName = 'Market Deeping';
+        marketData.forEach(doc => {
+            const location = doc.stop_name.toUpperCase();
+            if (location !== 'IBT') {
+                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
+                if (times) {
+                    Object.values(times).forEach(time => {
+                        const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
+                        const departureTime = new Date(now);
+                        departureTime.setHours(hours, minutes, 0, 0);
+                        
+                        const timeDiff = departureTime - currentTime;
+                        const diffMinutes = timeDiff / (1000 * 60);
+                        
+                        // Widened time window for more reliable detection
+                        if (diffMinutes >= 4.95 && diffMinutes <= 5.05) {
+                            allUpcomingDepartures.push({
+                                location: location,
+                                time: time,
+                                depot: marketTableName,
+                                tableId: 'market-section'
+                            });
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Process Fengate
+        const fengateTableName = 'Fengate';
+        fengateData.forEach(doc => {
+            const location = doc.stop_name.toUpperCase();
+            if (location !== 'IBT') {
+                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
+                if (times) {
+                    Object.values(times).forEach(time => {
+                        const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
+                        const departureTime = new Date(now);
+                        departureTime.setHours(hours, minutes, 0, 0);
+                        
+                        const timeDiff = departureTime - currentTime;
+                        const diffMinutes = timeDiff / (1000 * 60);
+                        
+                        // Widened time window for more reliable detection
+                        if (diffMinutes >= 4.95 && diffMinutes <= 5.05) {
+                            allUpcomingDepartures.push({
+                                location: location,
+                                time: time,
+                                depot: fengateTableName,
+                                tableId: 'fengate-section'
+                            });
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Process IBT times
+        const maskewIBTTimes = isActuallyWeekend ? 
+            ibtData.maskew_avenue_saturday_times : 
+            ibtData.maskew_avenue_weekday_times;
+            
+        for (let i = 0; i < Object.keys(maskewIBTTimes).length; i++) {
+            const time = maskewIBTTimes[i];
+            if (time) {
+                const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
+                const departureTime = new Date(now);
+                departureTime.setHours(hours, minutes, 0, 0);
+                
+                const timeDiff = departureTime - currentTime;
+                const diffMinutes = timeDiff / (1000 * 60);
+                
+                // Widened time window for more reliable detection
+                if (diffMinutes >= 4.95 && diffMinutes <= 5.05) {
+                    allUpcomingDepartures.push({
+                        location: 'IBT',
+                        time: time,
+                        suffix: 'HD',
+                        depot: 'Maskew Avenue',
+                        tableId: 'maskew-section'
+                    });
+                }
+            }
+        }
+        
+        const marketIBTTimes = isActuallyWeekend ? 
+            ibtData.market_deeping_saturday_times : 
+            ibtData.market_deeping_weekday_times;
+            
+        for (let i = 0; i < Object.keys(marketIBTTimes).length; i++) {
+            const time = marketIBTTimes[i];
+            if (time) {
+                const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
+                const departureTime = new Date(now);
+                departureTime.setHours(hours, minutes, 0, 0);
+                
+                const timeDiff = departureTime - currentTime;
+                const diffMinutes = timeDiff / (1000 * 60);
+                
+                // Widened time window for more reliable detection
+                if (diffMinutes >= 4.95 && diffMinutes <= 5.05) {
+                    allUpcomingDepartures.push({
+                        location: 'IBT',
+                        time: time,
+                        suffix: 'MD',
+                        depot: 'Market Deeping',
+                        tableId: 'market-section'
+                    });
+                }
+            }
+        }
+        
+        if (allUpcomingDepartures.length > 0) {
+            console.log('Found upcoming departures:', allUpcomingDepartures.map(d => `${d.depot}-${d.location} at ${d.time}`));
+        }
+        
+        return allUpcomingDepartures;
+    } catch (error) {
+        console.error('Error getting actual day upcoming departures:', error);
+        return [];
+    }
+}
+
 function checkDepartures() {
     if (window.electron) {
         window.electron.wakeUp();
@@ -373,36 +679,6 @@ function checkDepartures() {
     const timeKey = `${currentHours}:${currentMinutes}`;
     
     if (currentSeconds > 2 && timeKey === lastDepartureCheck) return;
-
-    // Check ALL tables for visual highlighting
-    const tables = document.querySelectorAll('.timetable-section');
-    let visibleDepartedVans = [];
-    
-    tables.forEach(table => {
-        const tableName = table.id === 'maskew-section' ? 'Maskew Avenue' : 
-                         table.id === 'market-section' ? 'Market Deeping' : 
-                         'Fengate';
-        const allRows = table.querySelectorAll('tr');
-        
-        allRows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            cells.forEach((cell, index) => {
-                if (cell.textContent === currentTime) {
-                    const header = table.querySelector('th:nth-child(' + (index + 1) + ')');
-                    const location = header.textContent;
-                    const suffix = cell.dataset.suffix || '';
-                    
-                    visibleDepartedVans.push({
-                        location: location,
-                        suffix: suffix,
-                        depot: tableName,
-                        tableId: table.id,
-                        cell: cell
-                    });
-                }
-            });
-        });
-    });
 
     // Now check for actual day departures for notifications
     getActualDayDepartures(currentTime).then(actualDepartedVans => {
@@ -486,50 +762,10 @@ function checkUpcomingDepartures() {
     const currentMinute = `${now.getHours()}:${now.getMinutes()}`;
     
     if (fiveMinuteWarningActive && currentMinute === lastFiveMinuteCheck) return;
-    
+
     // Get active table first as we'll need it for checks
     const activeTable = document.querySelector('.timetable-section.active');
     if (!activeTable) return;
-    
-    // Check displayed table for visual time indicators
-    const tables = document.querySelectorAll('.timetable-section');
-    let visibleUpcomingDepartures = [];
-    
-    tables.forEach(table => {
-        const tableName = table.id === 'maskew-section' ? 'Maskew Avenue' : 
-                         table.id === 'market-section' ? 'Market Deeping' : 
-                         'Fengate';
-        const allRows = table.querySelectorAll('tr');
-        
-        allRows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            cells.forEach((cell, index) => {
-                // Only check announced state for cells in the active table
-                const isActiveTable = table.id === activeTable.id;
-                if (cell.textContent && (!isActiveTable || !cell.classList.contains('announced'))) {
-                    const header = table.querySelector('th:nth-child(' + (index + 1) + ')');
-                    const location = header.textContent;
-                    
-                    const [hours, minutes] = cell.textContent.split(':').map(Number);
-                    const departureTime = new Date(now);
-                    departureTime.setHours(hours, minutes, 0, 0);
-                    
-                    const timeDiff = departureTime - currentTime;
-                    const diffMinutes = timeDiff / (1000 * 60);
-                    
-                    if (diffMinutes >= 5 && diffMinutes <= 5.033) {
-                        visibleUpcomingDepartures.push({
-                            location: location,
-                            time: cell.textContent,
-                            cell: cell,
-                            depot: tableName,
-                            tableId: table.id
-                        });
-                    }
-                }
-            });
-        });
-    });
 
     // Now check for actual day upcoming departures for notifications
     getActualDayUpcomingDepartures().then(actualUpcomingDepartures => {
@@ -596,7 +832,7 @@ function checkUpcomingDepartures() {
             // Find matching cells in the visible table
             activeTable.querySelectorAll('td').forEach(cell => {
                 activeActualUpcomingDepartures.forEach(dep => {
-                    if (cell.textContent === dep.time) {
+                    if (normalizeTimeFormat(cell.textContent) === normalizeTimeFormat(dep.time)) {
                         const cellIndex = Array.from(cell.parentNode.children).indexOf(cell);
                         const header = activeTable.querySelector(`th:nth-child(${cellIndex + 1})`);
                         if (header && header.textContent === dep.location) {
@@ -638,15 +874,16 @@ function updateClock() {
         updateTimeBasedStyling();
     }
 }
+
 async function loadTimetableData() {
     showError('');
     showLoading(true);
     
     try {
-        // Use the exposed Firebase API
+        // Use the exposed Firebase API (now using local data)
         const maskewData = await window.firebaseApi.getMaskewData();
         const marketData = await window.firebaseApi.getMarketData();
-        const fengateData = await window.firebaseApi.getFengateData(); // Add Fengate data
+        const fengateData = await window.firebaseApi.getFengateData();
         const ibtData = await window.firebaseApi.getIBTData();
 
         // Use the toggle state instead of checking actual day
@@ -694,9 +931,9 @@ async function loadTimetableData() {
         for (let i = 0; i < Object.keys(maskewIBTTimes).length; i++) {
             const time = maskewIBTTimes[i];
             if (time) {
-                allMaskewTimes.add(time);
+                allMaskewTimes.add(normalizeTimeFormat(time));
                 if (!maskewGrid['IBT']) maskewGrid['IBT'] = {};
-                maskewGrid['IBT'][time] = { time: time, suffix: 'HD' };
+                maskewGrid['IBT'][normalizeTimeFormat(time)] = { time: normalizeTimeFormat(time), suffix: 'HD' };
             }
         }
 
@@ -707,9 +944,10 @@ async function loadTimetableData() {
                 const times = isSaturday ? doc.saturday_times : doc.times;
                 if (times) {
                     Object.values(times).forEach(time => {
-                        allMaskewTimes.add(time);
+                        const normalizedTime = normalizeTimeFormat(time);
+                        allMaskewTimes.add(normalizedTime);
                         if (!maskewGrid[location]) maskewGrid[location] = {};
-                        maskewGrid[location][time] = { time: time };
+                        maskewGrid[location][normalizedTime] = { time: normalizedTime };
                     });
                 }
             }
@@ -728,9 +966,10 @@ async function loadTimetableData() {
         for (let i = 0; i < Object.keys(marketIBTTimes).length; i++) {
             const time = marketIBTTimes[i];
             if (time) {
-                allMarketTimes.add(time);
+                const normalizedTime = normalizeTimeFormat(time);
+                allMarketTimes.add(normalizedTime);
                 if (!marketGrid['IBT']) marketGrid['IBT'] = {};
-                marketGrid['IBT'][time] = { time: time, suffix: 'MD' };
+                marketGrid['IBT'][normalizedTime] = { time: normalizedTime, suffix: 'MD' };
             }
         }
 
@@ -741,9 +980,10 @@ async function loadTimetableData() {
                 const times = isSaturday ? doc.saturday_times : doc.times;
                 if (times) {
                     Object.values(times).forEach(time => {
-                        allMarketTimes.add(time);
+                        const normalizedTime = normalizeTimeFormat(time);
+                        allMarketTimes.add(normalizedTime);
                         if (!marketGrid[location]) marketGrid[location] = {};
-                        marketGrid[location][time] = { time: time };
+                        marketGrid[location][normalizedTime] = { time: normalizedTime };
                     });
                 }
             }
@@ -760,9 +1000,10 @@ async function loadTimetableData() {
                 const times = isSaturday ? doc.saturday_times : doc.times;
                 if (times) {
                     Object.values(times).forEach(time => {
-                        allFengateTimes.add(time);
+                        const normalizedTime = normalizeTimeFormat(time);
+                        allFengateTimes.add(normalizedTime);
                         if (!fengateGrid[location]) fengateGrid[location] = {};
-                        fengateGrid[location][time] = { time: time };
+                        fengateGrid[location][normalizedTime] = { time: normalizedTime };
                     });
                 }
             }
@@ -834,287 +1075,15 @@ async function loadTimetableData() {
     }
 }
 
-// Function to get active departures based on actual day
-async function getActualDayDepartures(currentTime) {
-    const now = new Date();
-    const isActuallyWeekend = now.getDay() === 6; // 6 is Saturday
-    
-    try {
-        // Get appropriate data
-        const maskewData = await window.firebaseApi.getMaskewData();
-        const marketData = await window.firebaseApi.getMarketData();
-        const fengateData = await window.firebaseApi.getFengateData();
-        const ibtData = await window.firebaseApi.getIBTData();
-        
-        let allDepartedVans = [];
-        
-        // Process Maskew Avenue
-        const tableName = 'Maskew Avenue';
-        maskewData.forEach(doc => {
-            const location = doc.stop_name.toUpperCase();
-            if (location !== 'IBT') {
-                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
-                if (times) {
-                    Object.values(times).forEach(time => {
-                        if (time === currentTime) {
-                            allDepartedVans.push({
-                                location: location,
-                                suffix: '',
-                                depot: tableName,
-                                tableId: 'maskew-section'
-                            });
-                        }
-                    });
-                }
-            }
-        });
-        
-        // Process Market Deeping
-        const marketTableName = 'Market Deeping';
-        marketData.forEach(doc => {
-            const location = doc.stop_name.toUpperCase();
-            if (location !== 'IBT') {
-                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
-                if (times) {
-                    Object.values(times).forEach(time => {
-                        if (time === currentTime) {
-                            allDepartedVans.push({
-                                location: location,
-                                suffix: '',
-                                depot: marketTableName,
-                                tableId: 'market-section'
-                            });
-                        }
-                    });
-                }
-            }
-        });
-        
-        // Process Fengate
-        const fengateTableName = 'Fengate';
-        fengateData.forEach(doc => {
-            const location = doc.stop_name.toUpperCase();
-            if (location !== 'IBT') {
-                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
-                if (times) {
-                    Object.values(times).forEach(time => {
-                        if (time === currentTime) {
-                            allDepartedVans.push({
-                                location: location,
-                                suffix: '',
-                                depot: fengateTableName,
-                                tableId: 'fengate-section'
-                            });
-                        }
-                    });
-                }
-            }
-        });
-        
-        // Process IBT times
-        const maskewIBTTimes = isActuallyWeekend ? 
-            ibtData.maskew_avenue_saturday_times : 
-            ibtData.maskew_avenue_weekday_times;
-            
-        for (let i = 0; i < Object.keys(maskewIBTTimes).length; i++) {
-            const time = maskewIBTTimes[i];
-            if (time === currentTime) {
-                allDepartedVans.push({
-                    location: 'IBT',
-                    suffix: 'HD',
-                    depot: 'Maskew Avenue',
-                    tableId: 'maskew-section'
-                });
-            }
-        }
-        
-        const marketIBTTimes = isActuallyWeekend ? 
-            ibtData.market_deeping_saturday_times : 
-            ibtData.market_deeping_weekday_times;
-            
-        for (let i = 0; i < Object.keys(marketIBTTimes).length; i++) {
-            const time = marketIBTTimes[i];
-            if (time === currentTime) {
-                allDepartedVans.push({
-                    location: 'IBT',
-                    suffix: 'MD',
-                    depot: 'Market Deeping',
-                    tableId: 'market-section'
-                });
-            }
-        }
-        
-        return allDepartedVans;
-    } catch (error) {
-        console.error('Error getting actual day departures:', error);
-        return [];
-    }
-}
-
-// Function to get upcoming departures based on actual day
-async function getActualDayUpcomingDepartures() {
-    const now = new Date();
-    const isActuallyWeekend = now.getDay() === 6; // 6 is Saturday
-    const currentTime = now.getTime();
-    
-    try {
-        // Get appropriate data
-        const maskewData = await window.firebaseApi.getMaskewData();
-        const marketData = await window.firebaseApi.getMarketData();
-        const fengateData = await window.firebaseApi.getFengateData();
-        const ibtData = await window.firebaseApi.getIBTData();
-        
-        let allUpcomingDepartures = [];
-        
-        // Process Maskew Avenue
-        const tableName = 'Maskew Avenue';
-        maskewData.forEach(doc => {
-            const location = doc.stop_name.toUpperCase();
-            if (location !== 'IBT') {
-                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
-                if (times) {
-                    Object.values(times).forEach(time => {
-                        const [hours, minutes] = time.split(':').map(Number);
-                        const departureTime = new Date(now);
-                        departureTime.setHours(hours, minutes, 0, 0);
-                        
-                        const timeDiff = departureTime - currentTime;
-                        const diffMinutes = timeDiff / (1000 * 60);
-                        
-                        if (diffMinutes >= 5 && diffMinutes <= 5.033) {
-                            allUpcomingDepartures.push({
-                                location: location,
-                                time: time,
-                                depot: tableName,
-                                tableId: 'maskew-section'
-                            });
-                        }
-                    });
-                }
-            }
-        });
-        
-        // Process Market Deeping
-        const marketTableName = 'Market Deeping';
-        marketData.forEach(doc => {
-            const location = doc.stop_name.toUpperCase();
-            if (location !== 'IBT') {
-                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
-                if (times) {
-                    Object.values(times).forEach(time => {
-                        const [hours, minutes] = time.split(':').map(Number);
-                        const departureTime = new Date(now);
-                        departureTime.setHours(hours, minutes, 0, 0);
-                        
-                        const timeDiff = departureTime - currentTime;
-                        const diffMinutes = timeDiff / (1000 * 60);
-                        
-                        if (diffMinutes >= 5 && diffMinutes <= 5.033) {
-                            allUpcomingDepartures.push({
-                                location: location,
-                                time: time,
-                                depot: marketTableName,
-                                tableId: 'market-section'
-                            });
-                        }
-                    });
-                }
-            }
-        });
-        
-        // Process Fengate
-        const fengateTableName = 'Fengate';
-        fengateData.forEach(doc => {
-            const location = doc.stop_name.toUpperCase();
-            if (location !== 'IBT') {
-                const times = isActuallyWeekend ? doc.saturday_times : doc.times;
-                if (times) {
-                    Object.values(times).forEach(time => {
-                        const [hours, minutes] = time.split(':').map(Number);
-                        const departureTime = new Date(now);
-                        departureTime.setHours(hours, minutes, 0, 0);
-                        
-                        const timeDiff = departureTime - currentTime;
-                        const diffMinutes = timeDiff / (1000 * 60);
-                        
-                        if (diffMinutes >= 5 && diffMinutes <= 5.033) {
-                            allUpcomingDepartures.push({
-                                location: location,
-                                time: time,
-                                depot: fengateTableName,
-                                tableId: 'fengate-section'
-                            });
-                        }
-                    });
-                }
-            }
-        });
-        
-        // Process IBT times
-        const maskewIBTTimes = isActuallyWeekend ? 
-            ibtData.maskew_avenue_saturday_times : 
-            ibtData.maskew_avenue_weekday_times;
-            
-        for (let i = 0; i < Object.keys(maskewIBTTimes).length; i++) {
-            const time = maskewIBTTimes[i];
-            if (time) {
-                const [hours, minutes] = time.split(':').map(Number);
-                const departureTime = new Date(now);
-                departureTime.setHours(hours, minutes, 0, 0);
-                
-                const timeDiff = departureTime - currentTime;
-                const diffMinutes = timeDiff / (1000 * 60);
-                
-                if (diffMinutes >= 5 && diffMinutes <= 5.033) {
-                    allUpcomingDepartures.push({
-                        location: 'IBT',
-                        time: time,
-                        suffix: 'HD',
-                        depot: 'Maskew Avenue',
-                        tableId: 'maskew-section'
-                    });
-                }
-            }
-        }
-        
-        const marketIBTTimes = isActuallyWeekend ? 
-            ibtData.market_deeping_saturday_times : 
-            ibtData.market_deeping_weekday_times;
-            
-        for (let i = 0; i < Object.keys(marketIBTTimes).length; i++) {
-            const time = marketIBTTimes[i];
-            if (time) {
-                const [hours, minutes] = time.split(':').map(Number);
-                const departureTime = new Date(now);
-                departureTime.setHours(hours, minutes, 0, 0);
-                
-                const timeDiff = departureTime - currentTime;
-                const diffMinutes = timeDiff / (1000 * 60);
-                
-                if (diffMinutes >= 5 && diffMinutes <= 5.033) {
-                    allUpcomingDepartures.push({
-                        location: 'IBT',
-                        time: time,
-                        suffix: 'MD',
-                        depot: 'Market Deeping',
-                        tableId: 'market-section'
-                    });
-                }
-            }
-        }
-        
-        return allUpcomingDepartures;
-    } catch (error) {
-        console.error('Error getting actual day upcoming departures:', error);
-        return [];
-    }
-}
-
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     await requestNotificationPermission();
     document.getElementById('table-select').addEventListener('change', showTable);
-    document.getElementById('refresh-button').addEventListener('click', loadTimetableData);
+    document.getElementById('refresh-button').addEventListener('click', async () => {
+        // Force reload data from files on refresh
+        await dataManager.reloadData();
+        loadTimetableData();
+    });
     
     // Initialize the toggle based on current day
     const dayToggle = document.getElementById('day-toggle');
@@ -1189,6 +1158,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.speechSynthesis.speak(testUtterance);
     }, 2000);
     
+    // Initialize the data manager and then load the timetable
+    await dataManager.initialize();
+    console.log(`Using data version: ${dataManager.getDataVersion()}`);
+    dataManager.startPeriodicUpdates(); // Start checking for updates every hour
     // Start the intervals
     setInterval(updateClock, 1000);
     setInterval(updateTimeBasedStyling, 10000);
@@ -1199,9 +1172,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initial load with table selection handling
     loadTimetableData().then(() => {
-        // Get the selected table value
+        // Get the selected table value from last session or default to maskew
+        const lastTable = getLastViewedTable();
         const tableSelect = document.getElementById('table-select');
-        const selectedTable = tableSelect.value;
+        tableSelect.value = lastTable;
         
         // Show the appropriate table
         const maskewSection = document.getElementById('maskew-section');
@@ -1212,19 +1186,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         marketSection.classList.remove('active');
         fengateSection.classList.remove('active');
         
-        if (selectedTable === 'maskew') {
+        if (lastTable === 'maskew') {
             maskewSection.classList.add('active');
-        } else if (selectedTable === 'market') {
+        } else if (lastTable === 'market') {
             marketSection.classList.add('active');
-        } else if (selectedTable === 'fengate') {
+        } else if (lastTable === 'fengate') {
             fengateSection.classList.add('active');
         }
         
         showTable();
+        
+        // Run initial checks to make sure we catch any departures
+        setTimeout(() => {
+            console.log("Running initial departure checks...");
+            checkDepartures();
+            checkUpcomingDepartures();
+        }, 3000);
     }).catch(error => {
         console.error('Error in initial load:', error);
         showError("Failed to load initial data. Please refresh the page.");
     });
+    // Add this inside the DOMContentLoaded event listener
+    document.getElementById('check-updates-button').addEventListener('click', async () => {
+        const updateAvailable = await dataManager.checkForRemoteUpdates();
+        if (updateAvailable) {
+            if (confirm('New schedule data is available. Download now?')) {
+                const updated = await dataManager.downloadLatestData();
+                if (updated) {
+                    // Reload the timetable with new data
+                    loadTimetableData();
+                }
+            }
+        } else {
+        alert('You already have the latest schedule data.');
+        }
+    });
+
 
     // Set up 7 PM refresh
     function scheduleNextRefresh() {
@@ -1239,7 +1236,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const delay = next7PM - now;
 
         setTimeout(() => {
-            loadTimetableData();
+            dataManager.reloadData().then(() => {
+                loadTimetableData();
+                console.log('Performed 7 PM data refresh');
+            });
             scheduleNextRefresh();
         }, delay);
     }

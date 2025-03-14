@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAP VAN TIMES</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- Add Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         /* Add smooth transitions for dark mode */
         body {
@@ -30,6 +27,7 @@
                         <option value="fengate">FENGATE</option>
                     </select>
                     <button id="refresh-button">Refresh Data</button>
+                    <button id="check-updates-button">Check for Updates</button>
                     <div class="toggle-container">
                         <label class="switch">
                             <input type="checkbox" id="day-toggle">
@@ -123,64 +121,10 @@
         </div>
     </div>
 
-    <script>
-        // Initialize Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyCYMHp-FO1TH8kGIOE42tfNal3sGXV8l6k",
-            authDomain: "map-van-times-1f688.firebaseapp.com",
-            projectId: "map-van-times-1f688",
-            storageBucket: "map-van-times-1f688.firebasestorage.app",
-            messagingSenderId: "169514675608",
-            appId: "1:169514675608:web:e17a3e687efc62d347cfed",
-            measurementId: "G-9SFHTDWRNX"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
-        // Expose Firebase functions globally
-        window.firebaseApi = {
-            getMaskewData: async () => {
-                try {
-                    const querySnapshot = await db.collection('maskew_avenue').get();
-                    return querySnapshot.docs.map(doc => doc.data());
-                } catch (error) {
-                    console.error("Error fetching Maskew data:", error);
-                    throw error;
-                }
-            },
-
-            getMarketData: async () => {
-                try {
-                    const querySnapshot = await db.collection('market_deeping').get();
-                    return querySnapshot.docs.map(doc => doc.data());
-                } catch (error) {
-                    console.error("Error fetching Market data:", error);
-                    throw error;
-                }
-            },
-
-            getFengateData: async () => {
-                try {
-                    const querySnapshot = await db.collection('fengate').get();
-                    return querySnapshot.docs.map(doc => doc.data());
-                } catch (error) {
-                    console.error("Error fetching Fengate data:", error);
-                    throw error;
-                }
-            },
-
-            getIBTData: async () => {
-                try {
-                    const querySnapshot = await db.collection('ibt_times').get();
-                    return querySnapshot.docs.map(doc => doc.data())[0];
-                } catch (error) {
-                    console.error("Error fetching IBT data:", error);
-                    throw error;
-                }
-            }
-        };
-    </script>
+    <!-- Add the data manager script first -->
+    <script src="data-manager.js"></script>
+    
+    <!-- Then your main script -->
     <script src="script.js"></script>
 </body>
 </html>
