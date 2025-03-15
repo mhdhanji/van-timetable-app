@@ -249,6 +249,9 @@ function speakWarningMessage(message) {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
+    // Ensure message is properly formatted
+    message = message.trim();
+    
     const utterance = new SpeechSynthesisUtterance(message);
     
     // Set voice preferences
@@ -260,8 +263,8 @@ function speakWarningMessage(message) {
         utterance.voice = window.defaultVoice;
     }
     
-    utterance.onstart = () => console.log('Warning speech started:', message);
-    utterance.onend = () => console.log('Warning speech ended:', message);
+    utterance.onstart = () => console.log('Warning speech started');
+    utterance.onend = () => console.log('Warning speech ended');
     utterance.onerror = (event) => console.error('Warning speech error:', event);
     
     // Speak once with small initial delay
@@ -780,12 +783,15 @@ function checkDepartures() {
                 const van = activeActualDepartures[0];
                 const spokenTime = formatTimeForSpeech(currentTime);
                 const spokenLocation = formatLocationForSpeech(van.location);
-                spokenMessage = `  Your attention please. The van to ${spokenLocation} has now departed at ${spokenTime}`;
+                spokenMessage = `Your attention please. The van to ${spokenLocation} has now departed at ${spokenTime}`;
             } else {
                 const locations = activeActualDepartures.map(van => formatLocationForSpeech(van.location)).join(' and ');
                 const spokenTime = formatTimeForSpeech(currentTime);
-                spokenMessage = `  Your attention please. Multiple vans have now departed at ${spokenTime}. Vans to ${locations} have left`;
+                spokenMessage = `Your attention please. Multiple vans have now departed at ${spokenTime}. Vans to ${locations} have left`;
             }
+            
+            // Ensure message is properly trimmed
+            spokenMessage = spokenMessage.trim();
             
             speakDepartureMessage(spokenMessage);
                 
@@ -863,14 +869,21 @@ function checkUpcomingDepartures() {
             if (activeActualUpcomingDepartures.length === 1) {
                 const spokenTime = formatTimeForSpeech(activeActualUpcomingDepartures[0].time);
                 const spokenLocation = formatLocationForSpeech(activeActualUpcomingDepartures[0].location);
-                spokenMessage = `  Your attention please. The van to ${spokenLocation} will be departing in 5 minutes at ${spokenTime}`;
+                
+                // Remove leading spaces and ensure clean formatting
+                spokenMessage = `Your attention please. The van to ${spokenLocation} will be departing in 5 minutes at ${spokenTime}`;
             } else {
                 const locationList = activeActualUpcomingDepartures
                     .map(dep => formatLocationForSpeech(dep.location))
                     .join(' and ');
                 const spokenTime = formatTimeForSpeech(activeActualUpcomingDepartures[0].time);
-                spokenMessage = `  Your attention please. Multiple vans will be departing in 5 minutes. Vans to ${locationList} will depart at ${spokenTime}`;
+                
+                // Remove leading spaces and ensure clean formatting
+                spokenMessage = `Your attention please. Multiple vans will be departing in 5 minutes. Vans to ${locationList} will depart at ${spokenTime}`;
             }       
+            
+            // Ensure message is properly trimmed
+            spokenMessage = spokenMessage.trim();
             
             speakWarningMessage(spokenMessage);
             
