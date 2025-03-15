@@ -268,7 +268,38 @@ function speakWarningMessage(message) {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
-    const utterance = new SpeechSynthesisUtterance(message);
+    // Create a hardcoded message for 5-minute warnings
+    // This bypasses any issues with string formatting
+    let finalMessage = message;
+    
+    // If this is a 5-minute warning, check and fix the format
+    if (message.includes("departing in 5 minutes")) {
+        if (message.includes("Multiple vans")) {
+            // Extract location list and time from the message
+            const locationStart = message.indexOf("Vans to ") + 8;
+            const locationEnd = message.indexOf(" will depart at");
+            const locations = message.substring(locationStart, locationEnd);
+            
+            const timeStart = message.indexOf("depart at ") + 10;
+            const time = message.substring(timeStart);
+            
+            finalMessage = "Your attention please. Multiple vans will be departing in 5 minutes. Vans to " + locations + " will depart at " + time;
+        } else {
+            // Extract location and time from the message
+            const locationStart = message.indexOf("van to ") + 7;
+            const locationEnd = message.indexOf(" will be departing");
+            const location = message.substring(locationStart, locationEnd);
+            
+            const timeStart = message.indexOf("minutes at ") + 10;
+            const time = message.substring(timeStart);
+            
+            finalMessage = "Your attention please. The van to " + location + " will be departing in 5 minutes at " + time;
+        }
+    }
+    
+    console.log('Final warning message:', finalMessage);
+    
+    const utterance = new SpeechSynthesisUtterance(finalMessage);
     
     // Set voice preferences
     utterance.rate = 0.9;
@@ -279,14 +310,14 @@ function speakWarningMessage(message) {
         utterance.voice = window.defaultVoice;
     }
     
-    utterance.onstart = () => console.log('Warning speech started:', message);
-    utterance.onend = () => console.log('Warning speech ended:', message);
+    utterance.onstart = () => console.log('Warning speech started');
+    utterance.onend = () => console.log('Warning speech ended');
     utterance.onerror = (event) => console.error('Warning speech error:', event);
     
-    // Speak once with small initial delay
+    // Use a longer delay to ensure speech system is ready
     setTimeout(() => {
         window.speechSynthesis.speak(utterance);
-    }, 100);
+    }, 200);
 }
 
 function updateTimeBasedStyling() {
