@@ -1,6 +1,6 @@
 {
   "name": "van-timetable-app",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "MAP Van Timetable Application",
   "main": "main.js",
   "repository": {

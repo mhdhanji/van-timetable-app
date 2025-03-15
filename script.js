@@ -124,6 +124,30 @@ function showVolumeIndicator() {
     }, 2000);
 }
 
+// Format location names for better speech pronunciation
+function formatLocationForSpeech(location) {
+    if (!location) return '';
+    
+    // Create a copy of the location string to modify
+    let formattedLocation = location;
+    
+    // Replace ST with Saint when it's a standalone word
+    formattedLocation = formattedLocation.replace(/\bST\b/g, 'Saint');
+    
+    // Replace & with "and"
+    formattedLocation = formattedLocation.replace(/&/g, 'and');
+    
+    // Convert to Title Case (capitalize first letter of each word)
+    formattedLocation = formattedLocation.split(' ').map(word => {
+        if (word.length > 0) {
+            return word[0].toUpperCase() + word.slice(1).toLowerCase();
+        }
+        return word;
+    }).join(' ');
+    
+    return formattedLocation;
+}
+
 // Notification functions
 async function requestNotificationPermission() {
     if (!('Notification' in window)) {
@@ -755,9 +779,10 @@ function checkDepartures() {
             if (activeActualDepartures.length === 1) {
                 const van = activeActualDepartures[0];
                 const spokenTime = formatTimeForSpeech(currentTime);
-                spokenMessage = `  Your attention please. The van to ${van.location} has now departed at ${spokenTime}`;
+                const spokenLocation = formatLocationForSpeech(van.location);
+                spokenMessage = `  Your attention please. The van to ${spokenLocation} has now departed at ${spokenTime}`;
             } else {
-                const locations = activeActualDepartures.map(van => van.location).join(' and ');
+                const locations = activeActualDepartures.map(van => formatLocationForSpeech(van.location)).join(' and ');
                 const spokenTime = formatTimeForSpeech(currentTime);
                 spokenMessage = `  Your attention please. Multiple vans have now departed at ${spokenTime}. Vans to ${locations} have left`;
             }
@@ -837,10 +862,11 @@ function checkUpcomingDepartures() {
             let spokenMessage;
             if (activeActualUpcomingDepartures.length === 1) {
                 const spokenTime = formatTimeForSpeech(activeActualUpcomingDepartures[0].time);
-                spokenMessage = `  Your attention please. The van to ${activeActualUpcomingDepartures[0].location} will be departing in 5 minutes at ${spokenTime}`;
+                const spokenLocation = formatLocationForSpeech(activeActualUpcomingDepartures[0].location);
+                spokenMessage = `  Your attention please. The van to ${spokenLocation} will be departing in 5 minutes at ${spokenTime}`;
             } else {
                 const locationList = activeActualUpcomingDepartures
-                    .map(dep => dep.location)
+                    .map(dep => formatLocationForSpeech(dep.location))
                     .join(' and ');
                 const spokenTime = formatTimeForSpeech(activeActualUpcomingDepartures[0].time);
                 spokenMessage = `  Your attention please. Multiple vans will be departing in 5 minutes. Vans to ${locationList} will depart at ${spokenTime}`;
@@ -884,25 +910,33 @@ function updateClock() {
     });
     document.getElementById('clock').textContent = timeString;
     
-    // ADD THIS BLOCK: Check if day has changed and update toggle accordingly
+    // Check if day has changed and update toggle accordingly
     const isSaturday = now.getDay() === 6;
     const dayToggle = document.getElementById('day-toggle');
-    if (isSaturday && !useWeekendTimes) {
-        // Switch to weekend mode on Saturday
-        useWeekendTimes = true;
-        dayToggle.checked = true;
-        saveToggleState(true);
-        loadTimetableData(); // Reload with weekend times
-        console.log('Automatically switched to weekend mode');
-    } else if (!isSaturday && useWeekendTimes && getToggleState() !== true) {
-        // Switch back to weekday mode on other days (unless manually set)
-        useWeekendTimes = false;
-        dayToggle.checked = false;
-        saveToggleState(false);
-        loadTimetableData(); // Reload with weekday times
-        console.log('Automatically switched to weekday mode');
+
+    // Get the last time the toggle was manually changed
+    const lastToggleTime = parseInt(sessionStorage.getItem('lastToggleTime') || '0');
+    const currentTime = now.getTime();
+    const fiveMinutesAgo = currentTime - (5 * 60 * 1000); // 5 minutes in milliseconds
+
+    // Only auto-switch if the user hasn't manually toggled in the last 5 minutes
+    if (lastToggleTime < fiveMinutesAgo) {
+        if (isSaturday && !useWeekendTimes) {
+            // Switch to weekend mode on Saturday
+            useWeekendTimes = true;
+            dayToggle.checked = true;
+            saveToggleState(true);
+            loadTimetableData(); // Reload with weekend times
+            console.log('Automatically switched to weekend mode');
+        } else if (!isSaturday && useWeekendTimes) {
+            // Switch back to weekday mode on other days
+            useWeekendTimes = false;
+            dayToggle.checked = false;
+            saveToggleState(false);
+            loadTimetableData(); // Reload with weekday times
+            console.log('Automatically switched to weekday mode');
+        }
     }
-    // END OF NEW BLOCK
     
     // Check for departures and upcoming departures
     checkDepartures();
@@ -1242,6 +1276,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     dayToggle.addEventListener('change', function() {
         useWeekendTimes = this.checked;
         saveToggleState(useWeekendTimes);
+    
+        // Save the time of manual toggle
+        sessionStorage.setItem('lastToggleTime', new Date().getTime().toString());
+    
         loadTimetableData(); // Reload the timetable with new setting
     });
     
