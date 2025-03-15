@@ -11,6 +11,7 @@ let speechVolume = 1.0;
 let useWeekendTimes = false;
 let speechQueue = [];
 let isSpeaking = false;
+let notificationDebounceTimers = {};
 
 // Toggle state functions
 function saveToggleState(isWeekend) {
@@ -174,6 +175,15 @@ function showDesktopNotification(title, body) {
     }
 
     try {
+        // Create a unique key for this notification
+        const notificationKey = `${title}-${body}`;
+        
+        // Check if we've shown this notification in the last 5 seconds
+        if (notificationDebounceTimers[notificationKey]) {
+            console.log('Debouncing duplicate notification:', notificationKey);
+            return;
+        }
+        
         // Force wake up before showing notification
         if (window.electron) {
             window.electron.wakeUp();
@@ -202,6 +212,12 @@ function showDesktopNotification(title, body) {
                     window.activeNotification = null;
                 }
             }, 30000);
+            
+            // Set debounce timer
+            notificationDebounceTimers[notificationKey] = true;
+            setTimeout(() => {
+                notificationDebounceTimers[notificationKey] = false;
+            }, 5000);
         }, 100);
 
     } catch (error) {
@@ -209,70 +225,52 @@ function showDesktopNotification(title, body) {
     }
 }
 
-// Speech functions
 function speakDepartureMessage(message) {
-    console.log('Queueing departure message:', message);
+    console.log('Speaking departure message:', message);
     
-    // Clean up the message
-    message = message.trim();
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
     
-    // Add to queue and process
-    addToSpeechQueue({
-        text: message,
-        type: 'departure',
-        repeat: true  // Departure messages repeat once
-    });
+    // Function to create and speak an utterance
+    function speak() {
+        const utterance = new SpeechSynthesisUtterance(message);
+        
+        // Set voice preferences
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = speechVolume;
+        
+        if (window.defaultVoice) {
+            utterance.voice = window.defaultVoice;
+        }
+        
+        utterance.onstart = () => console.log('Departure speech started:', message);
+        utterance.onend = () => console.log('Departure speech ended:', message);
+        utterance.onerror = (event) => console.error('Departure speech error:', event);
+        
+        window.speechSynthesis.speak(utterance);
+    }
+    
+    // Speak first time
+    setTimeout(() => {
+        speak();
+        
+        // Speak second time after 20 seconds
+        setTimeout(() => {
+            speak();
+        }, 20000);
+    }, 100);
 }
 
 function speakWarningMessage(message) {
-    console.log('Queueing warning message:', message);
+    console.log('Speaking warning message:', message);
     
-    // Clean up the message
-    message = message.trim();
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
     
-    // Add to queue and process
-    addToSpeechQueue({
-        text: message,
-        type: 'warning',
-        repeat: false
-    });
-}
-
-// New function to manage speech queue
-function addToSpeechQueue(speechItem) {
-    // Clear the queue if it's a new announcement (don't stack announcements)
-    if (speechQueue.length > 0) {
-        console.log('Clearing previous speech queue for new announcement');
-        speechQueue = [];
-        
-        // Cancel any ongoing speech
-        window.speechSynthesis.cancel();
-        isSpeaking = false;
-    }
+    const utterance = new SpeechSynthesisUtterance(message);
     
-    // Add the new item to the queue
-    speechQueue.push(speechItem);
-    
-    // Start processing the queue if not already speaking
-    if (!isSpeaking) {
-        processSpeechQueue();
-    }
-}
-
-// New function to process the speech queue
-function processSpeechQueue() {
-    if (speechQueue.length === 0) {
-        isSpeaking = false;
-        return;
-    }
-    
-    isSpeaking = true;
-    const item = speechQueue[0];
-    
-    console.log('Speaking from queue:', item.text);
-    
-    // Create and configure the utterance
-    const utterance = new SpeechSynthesisUtterance(item.text);
+    // Set voice preferences
     utterance.rate = 0.9;
     utterance.pitch = 1;
     utterance.volume = speechVolume;
@@ -281,54 +279,13 @@ function processSpeechQueue() {
         utterance.voice = window.defaultVoice;
     }
     
-    // Set up event handlers
-    utterance.onstart = () => console.log(`${item.type} speech started`);
+    utterance.onstart = () => console.log('Warning speech started:', message);
+    utterance.onend = () => console.log('Warning speech ended:', message);
+    utterance.onerror = (event) => console.error('Warning speech error:', event);
     
-    utterance.onend = () => {
-        console.log(`${item.type} speech ended`);
-        
-        // If this is a departure message that needs to repeat
-        if (item.type === 'departure' && item.repeat) {
-            // Add a modified version back to the queue that won't repeat again
-            speechQueue.push({
-                text: item.text,
-                type: item.type,
-                repeat: false
-            });
-        }
-        
-        // Remove the current item from the queue
-        speechQueue.shift();
-        
-        // Add a small delay before processing the next item
-        setTimeout(() => {
-            processSpeechQueue();
-        }, 500);
-    };
-    
-    utterance.onerror = (event) => {
-        console.error(`Speech error (${event.error}):`, event);
-        
-        // Handle the error by moving to the next item
-        speechQueue.shift();
-        
-        // Add a small delay before processing the next item
-        setTimeout(() => {
-            processSpeechQueue();
-        }, 500);
-    };
-    
-    // Speak with a small initial delay to ensure system is ready
+    // Speak once with small initial delay
     setTimeout(() => {
-        try {
-            window.speechSynthesis.speak(utterance);
-        } catch (error) {
-            console.error('Error speaking:', error);
-            
-            // Move to the next item on error
-            speechQueue.shift();
-            processSpeechQueue();
-        }
+        window.speechSynthesis.speak(utterance);
     }, 100);
 }
 
@@ -374,6 +331,7 @@ function showTable() {
     } else if (select.value === 'market') {
         marketSection.classList.add('active');
         saveLastViewedTable('market');
+        setTimeout(debugMarketDeepingTable, 500);
     } else if (select.value === 'fengate') {
         fengateSection.classList.add('active');
         saveLastViewedTable('fengate');
@@ -441,11 +399,19 @@ function getTimeStatus(timeStr) {
     if (!timeStr || !timeStr.includes(':')) return '';
     
     const now = new Date();
-    const [hours, minutes] = timeStr.split(':').map(Number);
+    
+    // Extract hours and minutes, ensuring they're parsed as integers
+    const [hoursStr, minutesStr] = timeStr.split(':');
+    const hours = parseInt(hoursStr, 10);
+    const minutes = parseInt(minutesStr, 10);
+    
+    // Create a date object for the time today
     const timeToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+    
+    // Calculate difference in minutes, using milliseconds for precision
     const diffMinutes = (timeToday - now) / (1000 * 60);
 
-    if (diffMinutes < 0) {
+    if (diffMinutes < -0.5) {  // Small buffer to prevent flickering
         return 'past';
     } else if (diffMinutes <= 5) {
         return 'time-five';
@@ -928,25 +894,37 @@ function checkUpcomingDepartures() {
 
             let spokenMessage;
             if (activeActualUpcomingDepartures.length === 1) {
-                const spokenTime = formatTimeForSpeech(activeActualUpcomingDepartures[0].time);
-                const spokenLocation = formatLocationForSpeech(activeActualUpcomingDepartures[0].location);
+                mainMessage.textContent = '5 MINUTES TO DEPARTURE';
                 
-                // Remove leading spaces and ensure clean formatting
+                // Make sure we have a valid location before displaying
+                const location = activeActualUpcomingDepartures[0].location || "Unknown";
+                detailMessage.textContent = `${location} departing at ${activeActualUpcomingDepartures[0].time}`;
+                
+                const spokenTime = formatTimeForSpeech(activeActualUpcomingDepartures[0].time);
+                const spokenLocation = formatLocationForSpeech(location);
+                
                 spokenMessage = `Your attention please. The van to ${spokenLocation} will be departing in 5 minutes at ${spokenTime}`;
             } else {
+                mainMessage.textContent = '5 MINUTES TO MULTIPLE DEPARTURES';
+                
+                // Make sure we have valid locations
+                const details = activeActualUpcomingDepartures
+                    .map(dep => `${dep.location || "Unknown"} at ${dep.time}`)
+                    .join(', ');
+                
+                detailMessage.textContent = details;
+                
                 const locationList = activeActualUpcomingDepartures
-                    .map(dep => formatLocationForSpeech(dep.location))
+                    .map(dep => formatLocationForSpeech(dep.location || "Unknown"))
                     .join(' and ');
+                
                 const spokenTime = formatTimeForSpeech(activeActualUpcomingDepartures[0].time);
                 
-                // Remove leading spaces and ensure clean formatting
                 spokenMessage = `Your attention please. Multiple vans will be departing in 5 minutes. Vans to ${locationList} will depart at ${spokenTime}`;
             }       
             
-            // Ensure message is properly trimmed
-            spokenMessage = spokenMessage.trim();
-            
-            speakWarningMessage(spokenMessage);
+            // Ensure message is properly trimmed with NO leading spaces
+            speakWarningMessage(spokenMessage.trim());
             
             fiveMinuteWarningActive = true;
             lastFiveMinuteCheck = currentMinute;
@@ -971,6 +949,41 @@ function checkUpcomingDepartures() {
                 fiveMinuteWarningActive = false;
             }, 60000);
         }
+    });
+}
+
+function debugMarketDeepingTable() {
+    console.log("=== Debugging Market Deeping Table ===");
+    
+    // Get the Market Deeping table
+    const marketTable = document.querySelector('#market-section');
+    if (!marketTable) {
+        console.error("Market Deeping table not found");
+        return;
+    }
+    
+    // Log all headers
+    const headers = marketTable.querySelectorAll('th');
+    console.log("Headers:");
+    headers.forEach((header, index) => {
+        console.log(`[${index}] ${header.textContent}`);
+    });
+    
+    // Get data from API and check location names
+    window.firebaseApi.getMarketData().then(data => {
+        console.log("Market data loaded, locations:");
+        data.forEach(item => {
+            console.log(`- ${item.stop_name.toUpperCase()}`);
+            
+            // Check if this is SPALDING
+            if (item.stop_name.toUpperCase().includes('SPALDING')) {
+                console.log("Spalding location details:", {
+                    name: item.stop_name.toUpperCase(),
+                    times: item.times ? Object.values(item.times) : "No times",
+                    saturdayTimes: item.saturday_times ? Object.values(item.saturday_times) : "No saturday times"
+                });
+            }
+        });
     });
 }
 
@@ -1386,11 +1399,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Test speech synthesis
     setTimeout(() => {
-        addToSpeechQueue({
-            text: 'Speech system initialized',
-            type: 'system',
-            repeat: false
-        });
+        const testUtterance = new SpeechSynthesisUtterance('Speech system initialized');
+        if (window.defaultVoice) {
+            testUtterance.voice = window.defaultVoice;
+        }
+        testUtterance.volume = speechVolume;
+        window.speechSynthesis.speak(testUtterance);
     }, 2000);
     
     // Initialize the data manager and then load the timetable
