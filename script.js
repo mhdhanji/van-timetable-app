@@ -9,6 +9,8 @@ let lastDepartureNotificationTime = null;
 let lastFiveMinuteNotificationTime = null;
 let speechVolume = 1.0;
 let useWeekendTimes = false;
+let speechQueue = [];
+let isSpeaking = false;
 
 // Toggle state functions
 function saveToggleState(isWeekend) {
@@ -124,7 +126,6 @@ function showVolumeIndicator() {
     }, 2000);
 }
 
-// Format location names for better speech pronunciation
 function formatLocationForSpeech(location) {
     if (!location) return '';
     
@@ -136,6 +137,9 @@ function formatLocationForSpeech(location) {
     
     // Replace & with "and"
     formattedLocation = formattedLocation.replace(/&/g, 'and');
+    
+    // Replace / with "and" if present
+    formattedLocation = formattedLocation.replace(/\//g, 'and');
     
     // Convert to Title Case (capitalize first letter of each word)
     formattedLocation = formattedLocation.split(' ').map(word => {
@@ -207,54 +211,68 @@ function showDesktopNotification(title, body) {
 
 // Speech functions
 function speakDepartureMessage(message) {
-    console.log('Speaking departure message:', message);
+    console.log('Queueing departure message:', message);
     
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
+    // Clean up the message
+    message = message.trim();
     
-    // Function to create and speak an utterance
-    function speak() {
-        const utterance = new SpeechSynthesisUtterance(message);
-        
-        // Set voice preferences
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        utterance.volume = speechVolume;
-        
-        if (window.defaultVoice) {
-            utterance.voice = window.defaultVoice;
-        }
-        
-        utterance.onstart = () => console.log('Departure speech started:', message);
-        utterance.onend = () => console.log('Departure speech ended:', message);
-        utterance.onerror = (event) => console.error('Departure speech error:', event);
-        
-        window.speechSynthesis.speak(utterance);
-    }
-    
-    // Speak first time
-    setTimeout(() => {
-        speak();
-        
-        // Speak second time after 20 seconds
-        setTimeout(() => {
-            speak();
-        }, 20000);
-    }, 100);
+    // Add to queue and process
+    addToSpeechQueue({
+        text: message,
+        type: 'departure',
+        repeat: true  // Departure messages repeat once
+    });
 }
 
 function speakWarningMessage(message) {
-    console.log('Speaking warning message:', message);
+    console.log('Queueing warning message:', message);
     
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
-    
-    // Ensure message is properly formatted
+    // Clean up the message
     message = message.trim();
     
-    const utterance = new SpeechSynthesisUtterance(message);
+    // Add to queue and process
+    addToSpeechQueue({
+        text: message,
+        type: 'warning',
+        repeat: false
+    });
+}
+
+// New function to manage speech queue
+function addToSpeechQueue(speechItem) {
+    // Clear the queue if it's a new announcement (don't stack announcements)
+    if (speechQueue.length > 0) {
+        console.log('Clearing previous speech queue for new announcement');
+        speechQueue = [];
+        
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        isSpeaking = false;
+    }
     
-    // Set voice preferences
+    // Add the new item to the queue
+    speechQueue.push(speechItem);
+    
+    // Start processing the queue if not already speaking
+    if (!isSpeaking) {
+        processSpeechQueue();
+    }
+}
+
+// New function to process the speech queue
+function processSpeechQueue() {
+    if (speechQueue.length === 0) {
+        isSpeaking = false;
+        return;
+    }
+    
+    isSpeaking = true;
+    const item = speechQueue[0];
+    
+    console.log('Speaking from queue:', item.text);
+    
+    // Create and configure the utterance
+    const utterance = new SpeechSynthesisUtterance(item.text);
     utterance.rate = 0.9;
     utterance.pitch = 1;
     utterance.volume = speechVolume;
@@ -263,13 +281,54 @@ function speakWarningMessage(message) {
         utterance.voice = window.defaultVoice;
     }
     
-    utterance.onstart = () => console.log('Warning speech started');
-    utterance.onend = () => console.log('Warning speech ended');
-    utterance.onerror = (event) => console.error('Warning speech error:', event);
+    // Set up event handlers
+    utterance.onstart = () => console.log(`${item.type} speech started`);
     
-    // Speak once with small initial delay
+    utterance.onend = () => {
+        console.log(`${item.type} speech ended`);
+        
+        // If this is a departure message that needs to repeat
+        if (item.type === 'departure' && item.repeat) {
+            // Add a modified version back to the queue that won't repeat again
+            speechQueue.push({
+                text: item.text,
+                type: item.type,
+                repeat: false
+            });
+        }
+        
+        // Remove the current item from the queue
+        speechQueue.shift();
+        
+        // Add a small delay before processing the next item
+        setTimeout(() => {
+            processSpeechQueue();
+        }, 500);
+    };
+    
+    utterance.onerror = (event) => {
+        console.error(`Speech error (${event.error}):`, event);
+        
+        // Handle the error by moving to the next item
+        speechQueue.shift();
+        
+        // Add a small delay before processing the next item
+        setTimeout(() => {
+            processSpeechQueue();
+        }, 500);
+    };
+    
+    // Speak with a small initial delay to ensure system is ready
     setTimeout(() => {
-        window.speechSynthesis.speak(utterance);
+        try {
+            window.speechSynthesis.speak(utterance);
+        } catch (error) {
+            console.error('Error speaking:', error);
+            
+            // Move to the next item on error
+            speechQueue.shift();
+            processSpeechQueue();
+        }
     }, 100);
 }
 
@@ -326,7 +385,9 @@ function showTable() {
     fiveMinuteWarningActive = false;
     
     // Cancel any ongoing speech
-    speechSynthesis.cancel();
+    window.speechSynthesis.cancel();
+    speechQueue = [];
+    isSpeaking = false;
     
     // Clear existing messages and reset announced state
     const departureMessage = document.getElementById('departure-message');
@@ -893,7 +954,6 @@ function checkUpcomingDepartures() {
             departureMessage.classList.add('active');
             
             // Mark cells in visible table as announced
-            // Find matching cells in the visible table
             activeTable.querySelectorAll('td').forEach(cell => {
                 activeActualUpcomingDepartures.forEach(dep => {
                     if (normalizeTimeFormat(cell.textContent) === normalizeTimeFormat(dep.time)) {
@@ -1326,11 +1386,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Test speech synthesis
     setTimeout(() => {
-        const testUtterance = new SpeechSynthesisUtterance('Speech system initialized');
-        if (window.defaultVoice) {
-            testUtterance.voice = window.defaultVoice;
-        }
-        window.speechSynthesis.speak(testUtterance);
+        addToSpeechQueue({
+            text: 'Speech system initialized',
+            type: 'system',
+            repeat: false
+        });
     }, 2000);
     
     // Initialize the data manager and then load the timetable
