@@ -28,7 +28,7 @@ class DataManager {
       
       // Check for updates in the background after a short delay
       setTimeout(() => {
-        this.checkForRemoteUpdates();
+        this.checkForRemoteUpdates(true); // true means auto-download
       }, 3000);
       
       return true;
@@ -155,33 +155,48 @@ class DataManager {
     return this.loadFromFiles();
   }
 
-  // Check for updates from GitHub
-  async checkForRemoteUpdates() {
+  // Check for updates from GitHub and download them automatically
+  async checkForRemoteUpdates(autoDownload = true) {
     try {
       console.log('Checking for remote updates...');
-      
+    
       // Add cache-busting parameter
       const timestamp = new Date().getTime();
       const url = `https://raw.githubusercontent.com/${this.githubUser}/${this.githubRepo}/${this.dataBranch}/version.json?t=${timestamp}`;
-      
+    
       const response = await fetch(url);
       if (!response.ok) {
         console.error('Failed to fetch remote version info:', response.status);
         return false;
       }
-      
+    
       const remoteVersion = await response.json();
       const localVersion = this.data.version;
-      
+    
       console.log(`Current data version: ${localVersion}, Remote version: ${remoteVersion.version}`);
-      
+    
       if (!localVersion || remoteVersion.version !== localVersion) {
         console.log(`Data update available: ${localVersion || 'none'} → ${remoteVersion.version}`);
+      
+        // Automatically download if autoDownload is true
+        if (autoDownload) {
+          console.log('Automatically downloading update...');
+          const success = await this.downloadLatestData();
         
-        // Show update notification
-        this.showUpdateAvailableNotification();
-        
-        return true; // Update is available
+          if (success) {
+            console.log('Update automatically applied');
+          
+            // Reload the timetable if window.loadTimetableData exists
+            if (window.loadTimetableData) {
+              window.loadTimetableData();
+            }
+          }
+        } else {
+          // Just show notification if autoDownload is false
+          this.showUpdateAvailableNotification();
+        }
+      
+        return true; // Update was available
       } else {
         console.log('Data is up to date');
         return false; // No update available
@@ -247,11 +262,11 @@ class DataManager {
 
   // Start periodic update checks
   startPeriodicUpdates() {
-    // Check for updates every hour
+    // Check for updates every hour with automatic download
     setInterval(() => {
-      this.checkForRemoteUpdates();
+      this.checkForRemoteUpdates(true); // true means auto-download
     }, 3600000); // 1 hour in milliseconds
-    
+  
     console.log('Periodic update checks started');
   }
 

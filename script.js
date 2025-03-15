@@ -331,7 +331,7 @@ function updateTimestamp() {
 }
 
 function getTimeStatus(timeStr) {
-    if (!timeStr) return '';
+    if (!timeStr || !timeStr.includes(':')) return '';
     
     const now = new Date();
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -362,7 +362,12 @@ function createEmptyTimeGrid(locations) {
 function normalizeTimeFormat(timeStr) {
     if (!timeStr) return '';
     
-    // Extract hours and minutes regardless of format
+    // Check if this is a time format with a colon
+    if (!timeStr.includes(':')) {
+        return timeStr; // Return special text as-is
+    }
+    
+    // Extract hours and minutes for regular time format
     const [hours, minutes] = timeStr.split(':').map(Number);
     
     // Return standardized format with leading zeros
@@ -394,6 +399,7 @@ async function getActualDayDepartures(currentTime) {
                 const times = isActuallyWeekend ? doc.saturday_times : doc.times;
                 if (times) {
                     Object.values(times).forEach(time => {
+                        if (!time.includes(':')) return;
                         const normalizedTime = normalizeTimeFormat(time);
                         if (normalizedTime === normalizedCurrentTime) {
                             allDepartedVans.push({
@@ -416,6 +422,7 @@ async function getActualDayDepartures(currentTime) {
                 const times = isActuallyWeekend ? doc.saturday_times : doc.times;
                 if (times) {
                     Object.values(times).forEach(time => {
+                        if (!time.includes(':')) return;
                         const normalizedTime = normalizeTimeFormat(time);
                         if (normalizedTime === normalizedCurrentTime) {
                             allDepartedVans.push({
@@ -438,6 +445,7 @@ async function getActualDayDepartures(currentTime) {
                 const times = isActuallyWeekend ? doc.saturday_times : doc.times;
                 if (times) {
                     Object.values(times).forEach(time => {
+                        if (!time.includes(':')) return;
                         const normalizedTime = normalizeTimeFormat(time);
                         if (normalizedTime === normalizedCurrentTime) {
                             allDepartedVans.push({
@@ -521,6 +529,7 @@ async function getActualDayUpcomingDepartures() {
                 const times = isActuallyWeekend ? doc.saturday_times : doc.times;
                 if (times) {
                     Object.values(times).forEach(time => {
+                        if (!time.includes(':')) return;
                         const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
                         const departureTime = new Date(now);
                         departureTime.setHours(hours, minutes, 0, 0);
@@ -550,6 +559,7 @@ async function getActualDayUpcomingDepartures() {
                 const times = isActuallyWeekend ? doc.saturday_times : doc.times;
                 if (times) {
                     Object.values(times).forEach(time => {
+                        if (!time.includes(':')) return;
                         const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
                         const departureTime = new Date(now);
                         departureTime.setHours(hours, minutes, 0, 0);
@@ -579,6 +589,7 @@ async function getActualDayUpcomingDepartures() {
                 const times = isActuallyWeekend ? doc.saturday_times : doc.times;
                 if (times) {
                     Object.values(times).forEach(time => {
+                        if (!time.includes(':')) return;
                         const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
                         const departureTime = new Date(now);
                         departureTime.setHours(hours, minutes, 0, 0);
@@ -854,6 +865,26 @@ function updateClock() {
     });
     document.getElementById('clock').textContent = timeString;
     
+    // ADD THIS BLOCK: Check if day has changed and update toggle accordingly
+    const isSaturday = now.getDay() === 6;
+    const dayToggle = document.getElementById('day-toggle');
+    if (isSaturday && !useWeekendTimes) {
+        // Switch to weekend mode on Saturday
+        useWeekendTimes = true;
+        dayToggle.checked = true;
+        saveToggleState(true);
+        loadTimetableData(); // Reload with weekend times
+        console.log('Automatically switched to weekend mode');
+    } else if (!isSaturday && useWeekendTimes && getToggleState() !== true) {
+        // Switch back to weekday mode on other days (unless manually set)
+        useWeekendTimes = false;
+        dayToggle.checked = false;
+        saveToggleState(false);
+        loadTimetableData(); // Reload with weekday times
+        console.log('Automatically switched to weekday mode');
+    }
+    // END OF NEW BLOCK
+    
     // Check for departures and upcoming departures
     checkDepartures();
     checkUpcomingDepartures();
@@ -1113,18 +1144,69 @@ document.addEventListener('DOMContentLoaded', async () => {
     await requestNotificationPermission();
     document.getElementById('table-select').addEventListener('change', showTable);
     document.getElementById('refresh-button').addEventListener('click', async () => {
-        // Check for remote updates instead of reloading from local files
-        const updateAvailable = await dataManager.checkForRemoteUpdates();
-        if (updateAvailable) {
-            if (confirm('New schedule data is available. Download now?')) {
+        // Show loading indicator
+        showLoading(true);
+        
+        try {
+            // Check for remote updates with auto-download disabled (we'll handle it manually)
+            const updateAvailable = await dataManager.checkForRemoteUpdates(false);
+            
+            if (updateAvailable) {
+                // Automatically download the update without confirmation
                 const updated = await dataManager.downloadLatestData();
                 if (updated) {
                     // Reload the timetable with new data
                     loadTimetableData();
+                    
+                    // The dataManager.downloadLatestData() function already shows a notification
+                    // in the corner via showUpdateCompletedNotification()
                 }
+            } else {
+                // Show a small notification that data is already up to date
+                const notification = document.createElement('div');
+                notification.style.position = 'fixed';
+                notification.style.bottom = '20px';
+                notification.style.right = '20px';
+                notification.style.backgroundColor = '#4CAF50';
+                notification.style.color = 'white';
+                notification.style.padding = '10px 20px';
+                notification.style.borderRadius = '5px';
+                notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+                notification.style.zIndex = '1000';
+                notification.textContent = 'Schedule data is already up to date';
+                
+                document.body.appendChild(notification);
+                
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 3000);
             }
-        } else {
-            alert('You already have the latest schedule data.');
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+            
+            // Show error notification
+            const notification = document.createElement('div');
+            notification.style.position = 'fixed';
+            notification.style.bottom = '20px';
+            notification.style.right = '20px';
+            notification.style.backgroundColor = '#f44336';
+            notification.style.color = 'white';
+            notification.style.padding = '10px 20px';
+            notification.style.borderRadius = '5px';
+            notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+            notification.style.zIndex = '1000';
+            notification.textContent = 'Error refreshing data. Please try again.';
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 3000);
+        } finally {
+            // Hide loading indicator
+            showLoading(false);
         }
     });
     // Initialize the toggle based on current day
