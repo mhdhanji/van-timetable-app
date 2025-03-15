@@ -983,7 +983,7 @@ async function loadTimetableData() {
             'BOURNE',
             'BOURNE NORTH',
             'HOLBEACH',
-            'SPALDING/PINCHBECK',
+            'SPALDING & PINCHBECK',
             'BOSTON',
             'OAKHAM',
             'UPPINGHAM',
