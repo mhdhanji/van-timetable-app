@@ -10,6 +10,25 @@ let lastFiveMinuteNotificationTime = null;
 let speechVolume = 1.0;
 let useWeekendTimes = false;
 
+// Toggle state functions
+function saveToggleState(isWeekend) {
+    try {
+        sessionStorage.setItem('useWeekendTimes', isWeekend ? 'true' : 'false');
+    } catch (err) {
+        console.error('Error saving toggle state:', err);
+    }
+}
+
+function getToggleState() {
+    try {
+        const savedState = sessionStorage.getItem('useWeekendTimes');
+        return savedState === 'true';
+    } catch (err) {
+        console.error('Error getting toggle state:', err);
+        return false;
+    }
+}
+
 // Create a replacement for the Firebase API using our data manager
 window.firebaseApi = {
     getMaskewData: async () => {
@@ -1212,25 +1231,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize the toggle based on current day
     const dayToggle = document.getElementById('day-toggle');
 
-    // Save toggle state to sessionStorage (clears when app closes)
-    function saveToggleState(isWeekend) {
-        try {
-            sessionStorage.setItem('useWeekendTimes', isWeekend ? 'true' : 'false');
-        } catch (err) {
-            console.error('Error saving toggle state:', err);
-        }
-    }
-
-    // Get saved toggle state from sessionStorage
-    function getToggleState() {
-        try {
-            const savedState = sessionStorage.getItem('useWeekendTimes');
-            return savedState === 'true';
-        } catch (err) {
-            console.error('Error getting toggle state:', err);
-            return false;
-        }
-    }
 
     // Set toggle based on saved state or current day
     const today = new Date();
