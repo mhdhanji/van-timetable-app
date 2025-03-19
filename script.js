@@ -268,11 +268,10 @@ function speakWarningMessage(message) {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
-    // Create a hardcoded message for 5-minute warnings
-    // This bypasses any issues with string formatting
+    // Create a hardcoded message format for all 5-minute warnings
     let finalMessage = message;
     
-    // If this is a 5-minute warning, check and fix the format
+    // If this is a 5-minute warning, use a consistent format for all tables
     if (message.includes("departing in 5 minutes")) {
         if (message.includes("Multiple vans")) {
             // Extract location list and time from the message
@@ -314,10 +313,10 @@ function speakWarningMessage(message) {
     utterance.onend = () => console.log('Warning speech ended');
     utterance.onerror = (event) => console.error('Warning speech error:', event);
     
-    // Use a longer delay to ensure speech system is ready
+    // Use a consistent longer delay for all announcements
     setTimeout(() => {
         window.speechSynthesis.speak(utterance);
-    }, 200);
+    }, 300);
 }
 
 function updateTimeBasedStyling() {
