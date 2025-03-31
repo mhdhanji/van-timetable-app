@@ -12,6 +12,7 @@ let useWeekendTimes = false;
 let speechQueue = [];
 let isSpeaking = false;
 let notificationDebounceTimers = {};
+let isWarningBeingSpoken = false;
 
 // Toggle state functions
 function saveToggleState(isWeekend) {
@@ -265,40 +266,19 @@ function speakDepartureMessage(message) {
 function speakWarningMessage(message) {
     console.log('Speaking warning message:', message);
     
+    // If a warning is already being spoken, don't interrupt it
+    if (isWarningBeingSpoken) {
+        console.log('Warning already being spoken, skipping new announcement');
+        return;
+    }
+    
+    // Set flag that we're speaking a warning
+    isWarningBeingSpoken = true;
+    
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
-    // Create a hardcoded message format for all 5-minute warnings
-    let finalMessage = message;
-    
-    // If this is a 5-minute warning, use a consistent format for all tables
-    if (message.includes("departing in 5 minutes")) {
-        if (message.includes("Multiple vans")) {
-            // Extract location list and time from the message
-            const locationStart = message.indexOf("Vans to ") + 8;
-            const locationEnd = message.indexOf(" will depart at");
-            const locations = message.substring(locationStart, locationEnd);
-            
-            const timeStart = message.indexOf("depart at ") + 10;
-            const time = message.substring(timeStart);
-            
-            finalMessage = "Your attention please. Multiple vans will be departing in 5 minutes. Vans to " + locations + " will depart at " + time;
-        } else {
-            // Extract location and time from the message
-            const locationStart = message.indexOf("van to ") + 7;
-            const locationEnd = message.indexOf(" will be departing");
-            const location = message.substring(locationStart, locationEnd);
-            
-            const timeStart = message.indexOf("minutes at ") + 10;
-            const time = message.substring(timeStart);
-            
-            finalMessage = "Your attention please. The van to " + location + " will be departing in 5 minutes at " + time;
-        }
-    }
-    
-    console.log('Final warning message:', finalMessage);
-    
-    const utterance = new SpeechSynthesisUtterance(finalMessage);
+    const utterance = new SpeechSynthesisUtterance(message);
     
     // Set voice preferences
     utterance.rate = 0.9;
@@ -309,14 +289,22 @@ function speakWarningMessage(message) {
         utterance.voice = window.defaultVoice;
     }
     
-    utterance.onstart = () => console.log('Warning speech started');
-    utterance.onend = () => console.log('Warning speech ended');
-    utterance.onerror = (event) => console.error('Warning speech error:', event);
+    utterance.onstart = () => console.log('Warning speech started:', message);
     
-    // Use a consistent longer delay for all announcements
+    utterance.onend = () => {
+        console.log('Warning speech ended:', message);
+        isWarningBeingSpoken = false;
+    };
+    
+    utterance.onerror = (event) => {
+        console.error('Warning speech error:', event);
+        isWarningBeingSpoken = false;
+    };
+    
+    // Speak once with small initial delay
     setTimeout(() => {
         window.speechSynthesis.speak(utterance);
-    }, 300);
+    }, 100);
 }
 
 function updateTimeBasedStyling() {
