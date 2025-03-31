@@ -32,7 +32,7 @@
         "3": "15:30"
       },
       "saturday_times": {
-        "0": "AS AND WHEN UNTIL 13:30"
+        "0": "AS AND WHEN"
       }
     },
     {
@@ -57,7 +57,7 @@
         "16": "16:00"
       },
       "saturday_times": {
-        "0": "AS AND WHEN UNTIL 13:30"
+        "0": "AS AND WHEN"
       }
     },
     {
@@ -82,7 +82,7 @@
         "16": "16:00"
       },
       "saturday_times": {
-        "0": "AS AND WHEN UNTIL 13:30"
+        "0": "AS AND WHEN"
       }
     },
     {
