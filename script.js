@@ -1088,6 +1088,8 @@ async function loadTimetableData() {
             'ST IVES',
             'HUNTINGDON',
             'WHITTLESEY & TURVES',
+            'YAXLEY & BARRACKS',
+            'STANGROUND',
             'CHATTERIS',
             'RAMSEY',
             'SAWTRY',
