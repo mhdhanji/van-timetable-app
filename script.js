@@ -14,6 +14,26 @@ let isSpeaking = false;
 let notificationDebounceTimers = {};
 let isWarningBeingSpoken = false;
 
+// Dictionary for special pronunciation cases
+const pronunciationDictionary = {
+    "WHITTLESEY": "WITT-ul-see",
+    "NASSINGTON": "NASS-ing-ton",
+    "STANGROUND": "STAN-ground",
+    "SAWTRY": "SAW-tree",
+    "OUNDLE": "OWN-dul",
+    "YAXLEY": "YAKS-lee",
+    "CHATTERIS": "CHAT-er-iss",
+    "PINCHBECK": "PINCH-beck",
+    "WISBECH": "WIZ-beech",
+    "HOLBEACH": "HOLE-beech",
+    "SPALDING": "SPALL-ding",
+    "BOURNE": "BORN",
+    "TURVES": "TURVES",
+    "FENGATE": "FEN-gate",
+    "BOONGATE": "BOON-gate",
+    "OXNEY": "OX-nee"
+};
+
 // Toggle state functions
 function saveToggleState(isWeekend) {
     try {
@@ -236,12 +256,50 @@ function speakDepartureMessage(message) {
     function speak() {
         const utterance = new SpeechSynthesisUtterance(message);
         
-        // Set voice preferences
+        // Set voice preferences for London Underground style
         utterance.rate = 0.9;
-        utterance.pitch = 1;
+        utterance.pitch = 1.05;
         utterance.volume = speechVolume;
         
-        if (window.defaultVoice) {
+        // Try to get a British English voice
+        const voices = window.speechSynthesis.getVoices();
+        
+        // Look for specific high-quality British voices
+        const preferredVoices = [
+            "Google UK English Female",
+            "Microsoft Hazel - English (United Kingdom)",
+            "Microsoft Susan - English (United Kingdom)",
+            "en-GB-Standard-Female"
+        ];
+        
+        let selectedVoice = null;
+        
+        // Try to find one of our preferred voices
+        for (const voiceName of preferredVoices) {
+            const foundVoice = voices.find(v => v.name.includes(voiceName));
+            if (foundVoice) {
+                selectedVoice = foundVoice;
+                break;
+            }
+        }
+        
+        // Fallback to any British female voice
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => 
+                voice.lang === 'en-GB' && voice.name.toLowerCase().includes('female')
+            );
+        }
+        
+        // Fallback to any British voice
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => voice.lang === 'en-GB');
+        }
+        
+        // Use the selected voice or default
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            console.log(`Using voice: ${selectedVoice.name}`);
+        } else if (window.defaultVoice) {
             utterance.voice = window.defaultVoice;
         }
         
@@ -280,12 +338,50 @@ function speakWarningMessage(message) {
     
     const utterance = new SpeechSynthesisUtterance(message);
     
-    // Set voice preferences
+    // Set voice preferences for London Underground style
     utterance.rate = 0.9;
-    utterance.pitch = 1;
+    utterance.pitch = 1.05;
     utterance.volume = speechVolume;
     
-    if (window.defaultVoice) {
+    // Try to get a British English voice
+    const voices = window.speechSynthesis.getVoices();
+    
+    // Look for specific high-quality British voices
+    const preferredVoices = [
+        "Google UK English Female",
+        "Microsoft Hazel - English (United Kingdom)",
+        "Microsoft Susan - English (United Kingdom)",
+        "en-GB-Standard-Female"
+    ];
+    
+    let selectedVoice = null;
+    
+    // Try to find one of our preferred voices
+    for (const voiceName of preferredVoices) {
+        const foundVoice = voices.find(v => v.name.includes(voiceName));
+        if (foundVoice) {
+            selectedVoice = foundVoice;
+            break;
+        }
+    }
+    
+    // Fallback to any British female voice
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => 
+            voice.lang === 'en-GB' && voice.name.toLowerCase().includes('female')
+        );
+    }
+    
+    // Fallback to any British voice
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.lang === 'en-GB');
+    }
+    
+    // Use the selected voice or default
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log(`Using voice: ${selectedVoice.name}`);
+    } else if (window.defaultVoice) {
         utterance.voice = window.defaultVoice;
     }
     
@@ -1094,6 +1190,7 @@ async function loadTimetableData() {
             'OAKHAM',
             'UPPINGHAM',
             'MARCH WISBECH',
+            'GRANTHAM',
             'IBT'
         ];
 
@@ -1409,11 +1506,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         const voices = window.speechSynthesis.getVoices();
         console.log('Available voices:', voices.map(v => `${v.name} (${v.lang})`));
         
-        // Try to set default British voice
-        const britishVoice = voices.find(voice => voice.lang === 'en-GB');
-        if (britishVoice) {
-            console.log('Found British voice:', britishVoice.name);
-            window.defaultVoice = britishVoice;
+        // Look for specific high-quality British voices
+        const preferredVoices = [
+            "Google UK English Female",
+            "Microsoft Hazel - English (United Kingdom)",
+            "Microsoft Susan - English (United Kingdom)",
+            "en-GB-Standard-Female"
+        ];
+        
+        let selectedVoice = null;
+        
+        // Try to find one of our preferred voices
+        for (const voiceName of preferredVoices) {
+            const foundVoice = voices.find(v => v.name.includes(voiceName));
+            if (foundVoice) {
+                selectedVoice = foundVoice;
+                break;
+            }
+        }
+        
+        // Fallback to any British female voice
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => 
+                voice.lang === 'en-GB' && voice.name.toLowerCase().includes('female')
+            );
+        }
+        
+        // Fallback to any British voice
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => voice.lang === 'en-GB');
+        }
+        
+        if (selectedVoice) {
+            console.log('Selected voice:', selectedVoice.name);
+            window.defaultVoice = selectedVoice;
         }
     };
     
