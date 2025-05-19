@@ -13,6 +13,7 @@ let speechQueue = [];
 let isSpeaking = false;
 let notificationDebounceTimers = {};
 let isWarningBeingSpoken = false;
+let isMuted = false;
 
 // Dictionary for special pronunciation cases
 const pronunciationDictionary = {
@@ -51,6 +52,64 @@ function getToggleState() {
         console.error('Error getting toggle state:', err);
         return false;
     }
+}
+
+// Mute functions
+function loadMuteState() {
+    try {
+        const savedMuteState = localStorage.getItem('isMuted');
+        return savedMuteState === 'true';
+    } catch (err) {
+        console.error('Error loading mute state:', err);
+        return false;
+    }
+}
+
+function saveMuteState(muted) {
+    try {
+        localStorage.setItem('isMuted', muted ? 'true' : 'false');
+    } catch (err) {
+        console.error('Error saving mute state:', err);
+    }
+}
+
+function updateMuteButtonUI() {
+    const muteButton = document.getElementById('mute-button');
+    const muteIcon = muteButton.querySelector('.mute-icon');
+    
+    if (isMuted) {
+        muteButton.classList.add('muted');
+        muteIcon.textContent = '🔇';
+    } else {
+        muteButton.classList.remove('muted');
+        muteIcon.textContent = '🔊';
+    }
+}
+
+function toggleMute() {
+    isMuted = !isMuted;
+    saveMuteState(isMuted);
+    updateMuteButtonUI();
+    
+    // Show feedback notification
+    const notification = document.createElement('div');
+    notification.style.position = 'fixed';
+    notification.style.bottom = '20px';
+    notification.style.right = '20px';
+    notification.style.backgroundColor = isMuted ? '#f44336' : '#4CAF50';
+    notification.style.color = 'white';
+    notification.style.padding = '10px 20px';
+    notification.style.borderRadius = '5px';
+    notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    notification.style.zIndex = '1000';
+    notification.textContent = isMuted ? 'Sound muted' : 'Sound unmuted';
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 2 seconds
+    setTimeout(() => {
+        document.body.removeChild(notification);
+    }, 2000);
 }
 
 // Create a replacement for the Firebase API using our data manager
@@ -249,6 +308,12 @@ function showDesktopNotification(title, body) {
 function speakDepartureMessage(message) {
     console.log('Speaking departure message:', message);
     
+    // Check if muted
+    if (isMuted) {
+        console.log('Skipping departure announcement - sound is muted');
+        return;
+    }
+    
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
@@ -323,6 +388,12 @@ function speakDepartureMessage(message) {
 
 function speakWarningMessage(message) {
     console.log('Speaking warning message:', message);
+    
+    // Check if muted
+    if (isMuted) {
+        console.log('Skipping warning announcement - sound is muted');
+        return;
+    }
     
     // If a warning is already being spoken, don't interrupt it
     if (isWarningBeingSpoken) {
@@ -1484,6 +1555,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         sessionStorage.setItem('lastToggleTime', new Date().getTime().toString());
     
         loadTimetableData(); // Reload the timetable with new setting
+    });
+    
+    // Initialize mute button
+    const muteButton = document.getElementById('mute-button');
+    isMuted = loadMuteState();
+    updateMuteButtonUI();
+
+    muteButton.addEventListener('click', toggleMute);
+
+    // Also add keyboard shortcut 'M' for mute toggle
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'm' || event.key === 'M') {
+            toggleMute();
+        }
     });
     
     // Volume control keyboard events
