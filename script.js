@@ -1,3 +1,9 @@
+
+function extractValidTime(entry) {
+    const match = entry.match(/\b\d{2}:\d{2}\b/);
+    return match ? match[0] : null;
+}
+
 // Initialize speech synthesis
 const speechSynthesis = window.speechSynthesis;
 
@@ -319,7 +325,12 @@ function speakDepartureMessage(message) {
     
     // Function to create and speak an utterance
     function speak() {
-        const utterance = new SpeechSynthesisUtterance(message);
+        const time = extractValidTime(message);
+        const spoken = time
+            ? `${message.replace(time, '').trim()} to leave at ${time}`
+            : message;
+
+        const utterance = new SpeechSynthesisUtterance(spoken);
         
         // Set voice preferences for London Underground style
         utterance.rate = 0.9;
@@ -407,7 +418,12 @@ function speakWarningMessage(message) {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
-    const utterance = new SpeechSynthesisUtterance(message);
+    const time = extractValidTime(message);
+    const spoken = time
+        ? `${message.replace(time, '').trim()} to leave at ${time}`
+        : message;
+
+    const utterance = new SpeechSynthesisUtterance(spoken);
     
     // Set voice preferences for London Underground style
     utterance.rate = 0.9;
@@ -586,8 +602,9 @@ function getTimeStatus(timeStr) {
     const now = new Date();
     
     // Extract hours and minutes, ensuring they're parsed as integers
-    const [hoursStr, minutesStr] = timeStr.split(':');
-    const hours = parseInt(hoursStr, 10);
+const valid = extractValidTime(timeStr);
+if (!valid) return;
+const [hoursStr, minutesStr] = valid.split(':');    const hours = parseInt(hoursStr, 10);
     const minutes = parseInt(minutesStr, 10);
     
     // Create a date object for the time today
@@ -626,8 +643,9 @@ function normalizeTimeFormat(timeStr) {
     }
     
     // Extract hours and minutes for regular time format
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    
+    const valid = extractValidTime(timeStr);
+    if (!valid) return;
+    const [hours, minutes] = valid.split(':').map(Number);    
     // Return standardized format with leading zeros
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
@@ -788,8 +806,10 @@ async function getActualDayUpcomingDepartures() {
                 if (times) {
                     Object.values(times).forEach(time => {
                         if (!time.includes(':')) return;
-                        const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
-                        const departureTime = new Date(now);
+                        const raw = normalizeTimeFormat(time);
+                        const valid = extractValidTime(raw);
+                        if (!valid) return;
+                        const [hours, minutes] = valid.split(':').map(Number);                        const departureTime = new Date(now);
                         departureTime.setHours(hours, minutes, 0, 0);
                         
                         const timeDiff = departureTime - currentTime;
@@ -818,8 +838,10 @@ async function getActualDayUpcomingDepartures() {
                 if (times) {
                     Object.values(times).forEach(time => {
                         if (!time.includes(':')) return;
-                        const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
-                        const departureTime = new Date(now);
+                        const raw = normalizeTimeFormat(time);
+                        const valid = extractValidTime(raw);
+                        if (!valid) return;
+                        const [hours, minutes] = valid.split(':').map(Number);                        const departureTime = new Date(now);
                         departureTime.setHours(hours, minutes, 0, 0);
                         
                         const timeDiff = departureTime - currentTime;
@@ -848,8 +870,10 @@ async function getActualDayUpcomingDepartures() {
                 if (times) {
                     Object.values(times).forEach(time => {
                         if (!time.includes(':')) return;
-                        const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
-                        const departureTime = new Date(now);
+                        const raw = normalizeTimeFormat(time);
+                        const valid = extractValidTime(raw);
+                        if (!valid) return;
+                        const [hours, minutes] = valid.split(':').map(Number);                        const departureTime = new Date(now);
                         departureTime.setHours(hours, minutes, 0, 0);
                         
                         const timeDiff = departureTime - currentTime;
@@ -877,8 +901,10 @@ async function getActualDayUpcomingDepartures() {
         for (let i = 0; i < Object.keys(maskewIBTTimes).length; i++) {
             const time = maskewIBTTimes[i];
             if (time) {
-                const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
-                const departureTime = new Date(now);
+                const raw = normalizeTimeFormat(time);
+                const valid = extractValidTime(raw);
+                if (!valid) return;
+                const [hours, minutes] = valid.split(':').map(Number);                const departureTime = new Date(now);
                 departureTime.setHours(hours, minutes, 0, 0);
                 
                 const timeDiff = departureTime - currentTime;
@@ -904,8 +930,10 @@ async function getActualDayUpcomingDepartures() {
         for (let i = 0; i < Object.keys(marketIBTTimes).length; i++) {
             const time = marketIBTTimes[i];
             if (time) {
-                const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
-                const departureTime = new Date(now);
+                const raw = normalizeTimeFormat(time);
+                const valid = extractValidTime(raw);
+                if (!valid) return;
+                const [hours, minutes] = valid.split(':').map(Number);                const departureTime = new Date(now);
                 departureTime.setHours(hours, minutes, 0, 0);
                 
                 const timeDiff = departureTime - currentTime;
@@ -1379,7 +1407,9 @@ async function loadTimetableData() {
                     
                     cell.className = timeStatus;
                     if (value) {
-                        cell.textContent = value.time;
+                        cell.textContent = typeof value === 'string'
+                            ? value
+                            : (value.label && value.time ? `${value.label} ${value.time}` : (value.time || ""));
                         if (value.suffix) {
                             cell.dataset.suffix = value.suffix;
                         }
@@ -1431,8 +1461,9 @@ async function loadTimetableData() {
 function formatTimeForSpeech(timeStr) {
     if (!timeStr) return '';
     
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    
+    const valid = extractValidTime(timeStr);
+    if (!valid) return;
+    const [hours, minutes] = valid.split(':').map(Number);    
     // Convert to 12-hour format
     let hour = hours % 12;
     if (hour === 0) hour = 12; // Convert 0 to 12 for 12 AM/PM
