@@ -1407,7 +1407,7 @@ async function loadTimetableData() {
                     
                     cell.className = timeStatus;
                     if (value) {
-                        cell.textContent = typeof value === 'string' ? value : (value.label ? `${value.label} ${value.time}` : value.time);
+                        cell.textContent = value;
                         if (value.suffix) {
                             cell.dataset.suffix = value.suffix;
                         }
