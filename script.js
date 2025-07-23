@@ -735,6 +735,21 @@ async function getActualDayDepartures(currentTime) {
                 });
             }
         }
+
+        // Maskew Avenue to Wisbech IBT times
+        const maskewToWisbechIBTTimes = ibtData.maskew_to_wisbech_times; // Adjust this to your actual JSON property!
+        for (let i = 0; i < Object.keys(maskewToWisbechIBTTimes).length; i++) {
+            const time = maskewToWisbechIBTTimes[i];
+            const normalizedTime = normalizeTimeFormat(time);
+            if (normalizedTime === normalizedCurrentTime) {
+                allDepartedVans.push({
+                    location: 'IBT TO WB', // This should match your grid/column name
+                    suffix: 'HD',
+                    depot: 'Maskew Avenue',
+                    tableId: 'maskew-section'
+                });
+            }
+        }
         
         const marketIBTTimes = isActuallyWeekend ? 
             ibtData.market_deeping_saturday_times : 
@@ -749,6 +764,21 @@ async function getActualDayDepartures(currentTime) {
                     suffix: 'MD',
                     depot: 'Market Deeping',
                     tableId: 'market-section'
+                });
+            }
+        }
+
+        // Fengate IBT times (only weekdays, since no Saturday IBT)
+        const fengateIBTTimes = ibtData.fengate_weekday_times;
+        for (let i = 0; i < Object.keys(fengateIBTTimes).length; i++) {
+            const time = fengateIBTTimes[i];
+            const normalizedTime = normalizeTimeFormat(time);
+            if (normalizedTime === normalizedCurrentTime) {
+                allDepartedVans.push({
+                    location: 'IBT',
+                    suffix: 'WB',
+                    depot: 'Wisbech',
+                    tableId: 'fengate-section'
                 });
             }
         }
@@ -896,7 +926,32 @@ async function getActualDayUpcomingDepartures() {
                 }
             }
         }
-        
+
+        // Maskew Avenue to Wisbech IBT times
+        const maskewToWisbechIBTTimes = ibtData.maskew_to_wisbech_times; // Use the actual property name!
+        for (let i = 0; i < Object.keys(maskewToWisbechIBTTimes).length; i++) {
+            const time = maskewToWisbechIBTTimes[i];
+            if (time) {
+                const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
+                const departureTime = new Date(now);
+                departureTime.setHours(hours, minutes, 0, 0);
+
+                const timeDiff = departureTime - currentTime;
+                const diffMinutes = timeDiff / (1000 * 60);
+
+                // 5-min window before departure
+                if (diffMinutes >= 4.95 && diffMinutes <= 5.05) {
+                    allUpcomingDepartures.push({
+                        location: 'IBT TO WB',
+                        time: time,
+                        suffix: 'HD',
+                        depot: 'Maskew Avenue',
+                        tableId: 'maskew-section'
+                    });
+                }
+            }
+        }
+
         const marketIBTTimes = isActuallyWeekend ? 
             ibtData.market_deeping_saturday_times : 
             ibtData.market_deeping_weekday_times;
@@ -919,6 +974,31 @@ async function getActualDayUpcomingDepartures() {
                         suffix: 'MD',
                         depot: 'Market Deeping',
                         tableId: 'market-section'
+                    });
+                }
+            }
+        }
+
+        // Fengate IBT times (only weekdays, since no Saturday IBT)
+        const fengateIBTTimes = ibtData.fengate_weekday_times;
+        for (let i = 0; i < Object.keys(fengateIBTTimes).length; i++) {
+            const time = fengateIBTTimes[i];
+            if (time) {
+                const [hours, minutes] = normalizeTimeFormat(time).split(':').map(Number);
+                const departureTime = new Date(now);
+                departureTime.setHours(hours, minutes, 0, 0);
+
+                const timeDiff = departureTime - currentTime;
+                const diffMinutes = timeDiff / (1000 * 60);
+
+                // Widened time window for more reliable detection
+                if (diffMinutes >= 4.95 && diffMinutes <= 5.05) {
+                    allUpcomingDepartures.push({
+                        location: 'IBT',
+                        time: time,
+                        suffix: 'WB',
+                        depot: 'Wisbech',
+                        tableId: 'fengate-section'
                     });
                 }
             }
@@ -980,9 +1060,10 @@ function checkDepartures() {
         
         if (!activeTable) return;
         
-        // Filter for active table departures from actual schedule
-        let activeActualDepartures = actualDepartedVans.filter(van => 
-            van.tableId === activeTable.id && van.location !== 'IBT'
+        let activeActualDepartures = actualDepartedVans.filter(van =>
+            van.tableId === activeTable.id &&
+            van.location !== 'IBT' &&
+            van.location !== 'IBT TO WB'
         );
 
         if (activeActualDepartures.length > 0 && timeKey !== lastDepartureCheck) {
@@ -1068,7 +1149,9 @@ function checkUpcomingDepartures() {
         
         // Filter for non-IBT departures from active table only in actual schedule
         let activeActualUpcomingDepartures = actualUpcomingDepartures.filter(dep => {
-            return dep.tableId === activeTable.id && dep.location !== 'IBT';
+            return dep.tableId === activeTable.id &&
+                    dep.location !== 'IBT' &&
+                    dep.location !== 'IBT TO WB';
         });
 
         // Handle on-screen message and announcement for actual schedule
@@ -1248,7 +1331,8 @@ async function loadTimetableData() {
             'RAMSEY',
             'SAWTRY',
             'OUNDLE & NASSINGTON',
-            'IBT'
+            'IBT',
+            'IBT TO WB'
         ];
 
         const marketLocations = [
@@ -1259,15 +1343,14 @@ async function loadTimetableData() {
             'BOSTON',
             'OAKHAM',
             'UPPINGHAM',
-            'MARCH WISBECH',
+            'MARCH',
             'GRANTHAM',
             'IBT'
         ];
 
         const fengateLocations = [
-            'OXNEY ROAD',
-            'BOONGATE',
-            'FENGATE ROAD'
+            'MARCH',
+            'IBT'
         ];
 
         // Process Maskew Avenue data
@@ -1304,6 +1387,20 @@ async function loadTimetableData() {
                 }
             }
         });
+
+
+        // Add IBT to WB times to Maskew table
+        const ibtToWB_Times = ibtData.fengate_weekday_times; // Only weekdays for Wisbech
+
+        for (let i = 0; i < Object.keys(ibtToWB_Times).length; i++) {
+            const time = ibtToWB_Times[i];
+            if (time) {
+                const normalizedTime = normalizeTimeFormat(time);
+                allMaskewTimes.add(normalizedTime);
+                if (!maskewGrid['IBT TO WB']) maskewGrid['IBT TO WB'] = {};
+                maskewGrid['IBT TO WB'][normalizedTime] = { time: normalizedTime, suffix: 'WB' };
+            }
+        }
 
         // Process Market Deeping data
         const marketGrid = createEmptyTimeGrid(marketLocations);
@@ -1360,6 +1457,18 @@ async function loadTimetableData() {
                 }
             }
         });
+
+        // Add IBT times for Fengate
+        const fengateIBTTimes = ibtData.fengate_weekday_times; // Only weekdays
+
+        for (let i = 0; i < Object.keys(fengateIBTTimes).length; i++) {
+            const time = fengateIBTTimes[i];
+            if (time) {
+                allFengateTimes.add(normalizeTimeFormat(time));
+                if (!fengateGrid['IBT']) fengateGrid['IBT'] = {};
+                fengateGrid['IBT'][normalizeTimeFormat(time)] = { time: normalizeTimeFormat(time), suffix: 'WB' };
+            }
+        }
 
         // Render all tables
         function renderTable(bodyId, times, locations, grid) {
