@@ -1331,7 +1331,7 @@ async function loadTimetableData() {
             'STANGROUND',
             'CHATTERIS',
             'RAMSEY',
-            'SAWTRY BARMPTON & OUNDLE',
+            'SAWTRY BRAMPTON & OUNDLE',
             'UPPINGHAM & NASSINGTON',
             'IBT',
             'IBT TO WB'
