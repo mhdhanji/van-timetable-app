@@ -106,7 +106,7 @@
       }
     },
     {
-      "stop_name": "SAWTRY",
+      "stop_name": "SAWTRY BARMPTON & OUNDLE",
       "times": {
         "0": "08:00",
         "1": "09:00",
@@ -123,7 +123,7 @@
       }
     },
     {
-      "stop_name": "OUNDLE & NASSINGTON",
+      "stop_name": "UPPINGHAM & NASSINGTON",
       "times": {
         "0": "08:30",
         "1": "09:30",
@@ -134,21 +134,6 @@
         "6": "15:00"
       },
       "saturday_times": {
-      }
-    },
-    {
-      "stop_name": "UPPINGHAM",
-      "times": {
-        "0": "09:00",
-        "1": "10:00",
-        "2": "11:00",
-        "3": "12:00",
-        "4": "13:00",
-        "5": "14:00",
-        "6": "15:00"
-      },
-      "saturday_times": {
-        "0": "9:00"
       }
     }
   ]
