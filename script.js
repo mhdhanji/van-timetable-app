@@ -775,7 +775,7 @@ async function getActualDayDepartures(currentTime) {
             const normalizedTime = normalizeTimeFormat(time);
             if (normalizedTime === normalizedCurrentTime) {
                 allDepartedVans.push({
-                    location: 'IBT',
+                    location: 'IBT TO HD',
                     suffix: 'WB',
                     depot: 'Wisbech',
                     tableId: 'fengate-section'
@@ -994,7 +994,7 @@ async function getActualDayUpcomingDepartures() {
                 // Widened time window for more reliable detection
                 if (diffMinutes >= 4.95 && diffMinutes <= 5.05) {
                     allUpcomingDepartures.push({
-                        location: 'IBT',
+                        location: 'IBT TO HD',
                         time: time,
                         suffix: 'WB',
                         depot: 'Wisbech',
@@ -1063,7 +1063,8 @@ function checkDepartures() {
         let activeActualDepartures = actualDepartedVans.filter(van =>
             van.tableId === activeTable.id &&
             van.location !== 'IBT' &&
-            van.location !== 'IBT TO WB'
+            van.location !== 'IBT TO WB'&&
+            van.location !== 'IBT TO HD'
         );
 
         if (activeActualDepartures.length > 0 && timeKey !== lastDepartureCheck) {
@@ -1151,7 +1152,8 @@ function checkUpcomingDepartures() {
         let activeActualUpcomingDepartures = actualUpcomingDepartures.filter(dep => {
             return dep.tableId === activeTable.id &&
                     dep.location !== 'IBT' &&
-                    dep.location !== 'IBT TO WB';
+                    dep.location !== 'IBT TO WB' &&
+                    dep.location !== 'IBT TO HD';
         });
 
         // Handle on-screen message and announcement for actual schedule
@@ -1331,6 +1333,7 @@ async function loadTimetableData() {
             'RAMSEY',
             'SAWTRY',
             'OUNDLE & NASSINGTON',
+            'UPPINGHAM',
             'IBT',
             'IBT TO WB'
         ];
@@ -1340,17 +1343,14 @@ async function loadTimetableData() {
             'BOURNE NORTH',
             'HOLBEACH',
             'SPALDING & PINCHBECK',
-            'BOSTON',
             'OAKHAM',
-            'UPPINGHAM',
-            'MARCH',
             'GRANTHAM',
             'IBT'
         ];
 
         const fengateLocations = [
             'MARCH',
-            'IBT'
+            'IBT TO HD'
         ];
 
         // Process Maskew Avenue data
@@ -1465,8 +1465,8 @@ async function loadTimetableData() {
             const time = fengateIBTTimes[i];
             if (time) {
                 allFengateTimes.add(normalizeTimeFormat(time));
-                if (!fengateGrid['IBT']) fengateGrid['IBT'] = {};
-                fengateGrid['IBT'][normalizeTimeFormat(time)] = { time: normalizeTimeFormat(time), suffix: 'WB' };
+                if (!fengateGrid['IBT TO HD']) fengateGrid['IBT'] = {};
+                fengateGrid['IBT TO HD'][normalizeTimeFormat(time)] = { time: normalizeTimeFormat(time), suffix: 'WB' };
             }
         }
 
