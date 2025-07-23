@@ -1390,7 +1390,7 @@ async function loadTimetableData() {
 
 
         // Add IBT to WB times to Maskew table
-        const ibtToWB_Times = ibtData.fengate_weekday_times; // Only weekdays for Wisbech
+        const ibtToWB_Times = ibtData.maskew_to_wisbech_times; // Only weekdays for Wisbech
 
         for (let i = 0; i < Object.keys(ibtToWB_Times).length; i++) {
             const time = ibtToWB_Times[i];
