@@ -106,7 +106,7 @@
       }
     },
     {
-      "stop_name": "SAWTRY BRAMPTON",
+      "stop_name": "OUNDLE SAWTRY & BRAMPTON",
       "times": {
         "0": "08:00",
         "1": "09:00",
@@ -123,7 +123,7 @@
       }
     },
     {
-      "stop_name": "OUNDLE & NASSINGTON",
+      "stop_name": "UPPINGHAM & NASSINGTON",
       "times": {
         "0": "08:30",
         "1": "09:30",
