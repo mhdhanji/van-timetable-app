@@ -737,7 +737,9 @@ async function getActualDayDepartures(currentTime) {
         }
 
         // Maskew Avenue to Wisbech IBT times
-        const maskewToWisbechIBTTimes = ibtData.maskew_to_wisbech_times; // Adjust this to your actual JSON property!
+        const maskewToWisbechIBTTimes = isActuallyWeekend ?
+            ibtData.maskew_to_wisbech_saturday_times :
+            ibtData.maskew_to_wisbech_times;
         for (let i = 0; i < Object.keys(maskewToWisbechIBTTimes).length; i++) {
             const time = maskewToWisbechIBTTimes[i];
             const normalizedTime = normalizeTimeFormat(time);
@@ -769,7 +771,9 @@ async function getActualDayDepartures(currentTime) {
         }
 
         // Fengate IBT times (only weekdays, since no Saturday IBT)
-        const fengateIBTTimes = ibtData.fengate_weekday_times;
+        const fengateIBTTimes = isActuallyWeekend ?
+            ibtData.fengate_saturday_times :
+            ibtData.fengate_weekday_times;
         for (let i = 0; i < Object.keys(fengateIBTTimes).length; i++) {
             const time = fengateIBTTimes[i];
             const normalizedTime = normalizeTimeFormat(time);
@@ -928,7 +932,9 @@ async function getActualDayUpcomingDepartures() {
         }
 
         // Maskew Avenue to Wisbech IBT times
-        const maskewToWisbechIBTTimes = ibtData.maskew_to_wisbech_times; // Use the actual property name!
+        const maskewToWisbechIBTTimes = isActuallyWeekend ?
+            ibtData.maskew_to_wisbech_saturday_times :
+            ibtData.maskew_to_wisbech_times;
         for (let i = 0; i < Object.keys(maskewToWisbechIBTTimes).length; i++) {
             const time = maskewToWisbechIBTTimes[i];
             if (time) {
@@ -980,7 +986,9 @@ async function getActualDayUpcomingDepartures() {
         }
 
         // Fengate IBT times (only weekdays, since no Saturday IBT)
-        const fengateIBTTimes = ibtData.fengate_weekday_times;
+        const fengateIBTTimes = isActuallyWeekend ?
+            ibtData.fengate_saturday_times :
+            ibtData.fengate_weekday_times;
         for (let i = 0; i < Object.keys(fengateIBTTimes).length; i++) {
             const time = fengateIBTTimes[i];
             if (time) {
@@ -1389,18 +1397,22 @@ async function loadTimetableData() {
         });
 
 
-        // Add IBT to WB times to Maskew table
-        const ibtToWB_Times = ibtData.maskew_to_wisbech_times; // Only weekdays for Wisbech
+        // Add IBT to WB times to Maskew table (use Saturday times if Saturday)
+        const ibtToWB_Times = isSaturday
+            ? ibtData.maskew_to_wisbech_saturday_times
+            : ibtData.maskew_to_wisbech_times;
 
-        for (let i = 0; i < Object.keys(ibtToWB_Times).length; i++) {
-            const time = ibtToWB_Times[i];
-            if (time) {
-                const normalizedTime = normalizeTimeFormat(time);
-                allMaskewTimes.add(normalizedTime);
-                if (!maskewGrid['IBT TO WB']) maskewGrid['IBT TO WB'] = {};
-                maskewGrid['IBT TO WB'][normalizedTime] = { time: normalizedTime, suffix: 'WB' };
+        if (ibtToWB_Times) {
+            for (let i = 0; i < Object.keys(ibtToWB_Times).length; i++) {
+                const time = ibtToWB_Times[i];
+                if (time) {
+                    const normalizedTime = normalizeTimeFormat(time);
+                    allMaskewTimes.add(normalizedTime);
+                    if (!maskewGrid['IBT TO WB']) maskewGrid['IBT TO WB'] = {};
+                    maskewGrid['IBT TO WB'][normalizedTime] = { time: normalizedTime, suffix: 'WB' };
+                }
             }
-        }
+        }   
 
         // Process Market Deeping data
         const marketGrid = createEmptyTimeGrid(marketLocations);
@@ -1458,15 +1470,19 @@ async function loadTimetableData() {
             }
         });
 
-        // Add IBT times for Fengate
-        const fengateIBTTimes = ibtData.fengate_weekday_times; // Only weekdays
+        // Add IBT times for Fengate (use Saturday times if Saturday)
+        const fengateIBTTimes = isSaturday
+            ? ibtData.fengate_saturday_times
+            : ibtData.fengate_weekday_times;
 
-        for (let i = 0; i < Object.keys(fengateIBTTimes).length; i++) {
-            const time = fengateIBTTimes[i];
-            if (time) {
-                allFengateTimes.add(normalizeTimeFormat(time));
-                if (!fengateGrid['IBT TO HD']) fengateGrid['IBT'] = {};
-                fengateGrid['IBT TO HD'][normalizeTimeFormat(time)] = { time: normalizeTimeFormat(time), suffix: 'WB' };
+        if (fengateIBTTimes) {
+            for (let i = 0; i < Object.keys(fengateIBTTimes).length; i++) {
+                const time = fengateIBTTimes[i];
+                if (time) {
+                    allFengateTimes.add(normalizeTimeFormat(time));
+                    if (!fengateGrid['IBT TO HD']) fengateGrid['IBT TO HD'] = {};
+                    fengateGrid['IBT TO HD'][normalizeTimeFormat(time)] = { time: normalizeTimeFormat(time), suffix: 'WB' };
+                }
             }
         }
 
