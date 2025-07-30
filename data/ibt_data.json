@@ -16,8 +16,9 @@
       "1": "11:00",
       "2": "14:00"
     },
-    
+
     "maskew_to_wisbech_saturday_times": {
+      "0": "09:00"
     },
 
     "maskew_avenue_saturday_times": {
@@ -53,5 +54,6 @@
       "2": "15:30"
     },
     "fengate_saturday_times": {
+      "0": "10:30"
     }
   }
