@@ -581,22 +581,18 @@ function updateTimestamp() {
 }
 
 function getTimeStatus(timeStr) {
-    if (!timeStr || !timeStr.includes(':')) return '';
-    
+    const norm = normalizeTimeFormat(timeStr);
+    if (!norm || !norm.includes(':')) return '';
+
     const now = new Date();
-    
-    // Extract hours and minutes, ensuring they're parsed as integers
-    const [hoursStr, minutesStr] = timeStr.split(':');
+    const [hoursStr, minutesStr] = norm.split(':');
     const hours = parseInt(hoursStr, 10);
     const minutes = parseInt(minutesStr, 10);
-    
-    // Create a date object for the time today
+
     const timeToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-    
-    // Calculate difference in minutes, using milliseconds for precision
     const diffMinutes = (timeToday - now) / (1000 * 60);
 
-    if (diffMinutes < -0.5) {  // Small buffer to prevent flickering
+    if (diffMinutes < -0.5) {
         return 'past';
     } else if (diffMinutes <= 5) {
         return 'time-five';
@@ -619,16 +615,17 @@ function createEmptyTimeGrid(locations) {
 // Function to normalize time format for comparisons
 function normalizeTimeFormat(timeStr) {
     if (!timeStr) return '';
-    
-    // Check if this is a time format with a colon
-    if (!timeStr.includes(':')) {
-        return timeStr; // Return special text as-is
+    // Always work with a string
+    const raw = String(timeStr);
+    // Find the first HH:MM pattern anywhere in the string
+    const match = raw.match(/\b(\d{1,2}):(\d{2})\b/);
+    if (!match) {
+        // No time present (e.g., "AS AND WHEN") – return as-is so callers can treat it specially
+        return raw;
     }
-    
-    // Extract hours and minutes for regular time format
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    
-    // Return standardized format with leading zeros
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return '';
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
@@ -1388,9 +1385,12 @@ async function loadTimetableData() {
                 if (times) {
                     Object.values(times).forEach(time => {
                         const normalizedTime = normalizeTimeFormat(time);
-                        allMaskewTimes.add(normalizedTime);
-                        if (!maskewGrid[location]) maskewGrid[location] = {};
-                        maskewGrid[location][normalizedTime] = { time: normalizedTime };
+                        if (normalizedTime.includes(':')) {
+                            allMaskewTimes.add(normalizedTime);
+                            if (!maskewGrid[location]) maskewGrid[location] = {};
+                            const display = String(time).trim();
+                            maskewGrid[location][normalizedTime] = { time: normalizedTime, display };
+                        }
                     });
                 }
             }
@@ -1442,9 +1442,12 @@ async function loadTimetableData() {
                 if (times) {
                     Object.values(times).forEach(time => {
                         const normalizedTime = normalizeTimeFormat(time);
-                        allMarketTimes.add(normalizedTime);
-                        if (!marketGrid[location]) marketGrid[location] = {};
-                        marketGrid[location][normalizedTime] = { time: normalizedTime };
+                        if (normalizedTime.includes(':')) {
+                            allMarketTimes.add(normalizedTime);
+                            if (!marketGrid[location]) marketGrid[location] = {};
+                            const display = String(time).trim();
+                            marketGrid[location][normalizedTime] = { time: normalizedTime, display };
+                        }
                     });
                 }
             }
@@ -1462,9 +1465,12 @@ async function loadTimetableData() {
                 if (times) {
                     Object.values(times).forEach(time => {
                         const normalizedTime = normalizeTimeFormat(time);
-                        allFengateTimes.add(normalizedTime);
-                        if (!fengateGrid[location]) fengateGrid[location] = {};
-                        fengateGrid[location][normalizedTime] = { time: normalizedTime };
+                        if (normalizedTime.includes(':')) {
+                            allFengateTimes.add(normalizedTime);
+                            if (!fengateGrid[location]) fengateGrid[location] = {};
+                            const display = String(time).trim();
+                            fengateGrid[location][normalizedTime] = { time: normalizedTime, display };
+                        }
                     });
                 }
             }
@@ -1504,7 +1510,7 @@ async function loadTimetableData() {
                     
                     cell.className = timeStatus;
                     if (value) {
-                        cell.textContent = value.time;
+                        cell.textContent = value.display || value.time;
                         if (value.suffix) {
                             cell.dataset.suffix = value.suffix;
                         }
