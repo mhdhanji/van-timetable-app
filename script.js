@@ -1385,12 +1385,11 @@ async function loadTimetableData() {
                 if (times) {
                     Object.values(times).forEach(time => {
                         const normalizedTime = normalizeTimeFormat(time);
-                        if (normalizedTime.includes(':')) {
-                            allMaskewTimes.add(normalizedTime);
-                            if (!maskewGrid[location]) maskewGrid[location] = {};
-                            const display = String(time).trim();
-                            maskewGrid[location][normalizedTime] = { time: normalizedTime, display };
-                        }
+                        const display = String(time).trim();
+                        if (!maskewGrid[location]) maskewGrid[location] = {};
+                        maskewGrid[location][normalizedTime] = { time: normalizedTime, display };
+                        // Add all keys (time and non-time) so they render
+                        allMaskewTimes.add(normalizedTime);
                     });
                 }
             }
@@ -1442,12 +1441,11 @@ async function loadTimetableData() {
                 if (times) {
                     Object.values(times).forEach(time => {
                         const normalizedTime = normalizeTimeFormat(time);
-                        if (normalizedTime.includes(':')) {
-                            allMarketTimes.add(normalizedTime);
-                            if (!marketGrid[location]) marketGrid[location] = {};
-                            const display = String(time).trim();
-                            marketGrid[location][normalizedTime] = { time: normalizedTime, display };
-                        }
+                        const display = String(time).trim();
+                        if (!marketGrid[location]) marketGrid[location] = {};
+                        marketGrid[location][normalizedTime] = { time: normalizedTime, display };
+                        // Add all keys (time and non-time) so they render
+                        allMarketTimes.add(normalizedTime);
                     });
                 }
             }
@@ -1465,12 +1463,11 @@ async function loadTimetableData() {
                 if (times) {
                     Object.values(times).forEach(time => {
                         const normalizedTime = normalizeTimeFormat(time);
-                        if (normalizedTime.includes(':')) {
-                            allFengateTimes.add(normalizedTime);
-                            if (!fengateGrid[location]) fengateGrid[location] = {};
-                            const display = String(time).trim();
-                            fengateGrid[location][normalizedTime] = { time: normalizedTime, display };
-                        }
+                        const display = String(time).trim();
+                        if (!fengateGrid[location]) fengateGrid[location] = {};
+                        fengateGrid[location][normalizedTime] = { time: normalizedTime, display };
+                        // Add all keys (time and non-time) so they render
+                        allFengateTimes.add(normalizedTime);
                     });
                 }
             }
@@ -1497,17 +1494,23 @@ async function loadTimetableData() {
             const tableBody = document.getElementById(bodyId);
             tableBody.innerHTML = '';
 
-            Array.from(times).sort((a, b) => {
+            const allKeys = Array.from(times);
+            const timeKeys = allKeys.filter(k => /^\d{2}:\d{2}$/.test(k));
+            const nonTimeKeys = allKeys.filter(k => !/^\d{2}:\d{2}$/.test(k));
+
+            timeKeys.sort((a, b) => {
                 const timeA = new Date(`1970/01/01 ${a}`);
                 const timeB = new Date(`1970/01/01 ${b}`);
                 return timeA - timeB;
-            }).forEach(time => {
+            });
+
+            [...timeKeys, ...nonTimeKeys].forEach(time => {
                 const row = document.createElement('tr');
                 locations.forEach(location => {
                     const cell = document.createElement('td');
                     const value = grid[location][time];
                     const timeStatus = getTimeStatus(time);
-                    
+
                     cell.className = timeStatus;
                     if (value) {
                         cell.textContent = value.display || value.time;
