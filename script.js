@@ -1330,13 +1330,15 @@ async function loadTimetableData() {
         const isSaturday = useWeekendTimes;
 
         const maskewLocations = [
-            'ST IVES & HUNTINGDON',
+            'ST IVES',
+            'HUNTINGDON',
             'WHITTLESEY & TURVES',
             'YAXLEY & BARRACKS',
             'STANGROUND',
             'CHATTERIS',
             'RAMSEY',
-            'SAWTRY & BRAMPTON',
+            'SAWTRY',
+            'BRAMPTON',
             'OUNDLE',
             'UPPINGHAM & NASSINGTON',
             'IBT',
