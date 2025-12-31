@@ -1821,4 +1821,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error in initial load:', error);
         showError("Failed to load initial data. Please refresh the page.");
     });
+
+    // Supplier Modal Functionality
+    const supplierButton = document.getElementById('supplier-button');
+    const supplierModal = document.getElementById('supplier-modal');
+    const supplierModalClose = document.querySelector('.supplier-modal-close');
+
+    if (supplierButton && supplierModal) {
+        // Open modal when button is clicked
+        supplierButton.addEventListener('click', function() {
+            supplierModal.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        });
+
+        // Close modal when X is clicked
+        if (supplierModalClose) {
+            supplierModalClose.addEventListener('click', function() {
+                supplierModal.style.display = 'none';
+                document.body.style.overflow = ''; // Restore scrolling
+            });
+        }
+
+        // Close modal when clicking outside the content
+        supplierModal.addEventListener('click', function(event) {
+            if (event.target === supplierModal) {
+                supplierModal.style.display = 'none';
+                document.body.style.overflow = ''; // Restore scrolling
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && supplierModal.style.display === 'block') {
+                supplierModal.style.display = 'none';
+                document.body.style.overflow = ''; // Restore scrolling
+            }
+        });
+    }
 });

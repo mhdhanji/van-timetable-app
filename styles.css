@@ -718,3 +718,99 @@ body.dark-mode .mute-button.muted {
 body.dark-mode .mute-button.muted:hover {
     background-color: #a00000;
 }
+
+/* Supplier Button Styles */
+.supplier-button {
+    padding: 8px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.supplier-button:hover {
+    background-color: #1976D2;
+}
+
+body.dark-mode .supplier-button {
+    background-color: #1565C0;
+}
+
+body.dark-mode .supplier-button:hover {
+    background-color: #1976D2;
+}
+
+/* Supplier Modal Styles */
+.supplier-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    overflow: auto;
+}
+
+.supplier-modal-content {
+    background-color: #fefefe;
+    margin: 2% auto;
+    padding: 20px;
+    border-radius: 10px;
+    width: 95%;
+    max-width: 1400px;
+    position: relative;
+    max-height: 95vh;
+    overflow: auto;
+}
+
+body.dark-mode .supplier-modal-content {
+    background-color: #2a2a2a;
+    color: #ffffff;
+}
+
+.supplier-modal-content h2 {
+    text-align: center;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+body.dark-mode .supplier-modal-content h2 {
+    color: #ffffff;
+}
+
+.supplier-modal-close {
+    position: absolute;
+    right: 20px;
+    top: 10px;
+    color: #aaa;
+    font-size: 35px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.supplier-modal-close:hover,
+.supplier-modal-close:focus {
+    color: #333;
+}
+
+body.dark-mode .supplier-modal-close:hover,
+body.dark-mode .supplier-modal-close:focus {
+    color: #fff;
+}
+
+.supplier-image {
+    width: 100%;
+    height: auto;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
