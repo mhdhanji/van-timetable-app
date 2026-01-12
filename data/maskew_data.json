@@ -2,8 +2,7 @@
     {
       "stop_name": "ST IVES",
       "times": {
-        "0": "10:00",
-        "1": "13:00"
+        "0": "NO MORE"
       },
       "saturday_times": {
         "0": "10:00"
