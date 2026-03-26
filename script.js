@@ -28,7 +28,7 @@ const pronunciationDictionary = {
     "WISBECH": "WIZ-beech",
     "HOLBEACH": "HOLE-beech",
     "SPALDING": "SPALL-ding",
-    "BOURNE": "BORN",
+    "BOURNE ALL": "BORN",
     "TURVES": "TURVES",
     "FENGATE": "FEN-gate",
     "BOONGATE": "BOON-gate",
@@ -1346,8 +1346,7 @@ async function loadTimetableData() {
         ];
 
         const marketLocations = [
-            'BOURNE',
-            'BOURNE NORTH',
+            'BOURNE ALL',
             'HOLBEACH',
             'SPALDING & PINCHBECK',
             'OAKHAM',
