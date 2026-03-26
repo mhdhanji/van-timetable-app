@@ -34,7 +34,7 @@
       }
     },
     {
-      "stop_name": "SPALDING & PINCHBECK",
+      "stop_name": "PINCHBECK",
       "times": {
         "0": "08:30",
         "1": "09:30",
@@ -46,28 +46,33 @@
         "7": "15:30"
       },
       "saturday_times": {
-        "0": "09:00",
-        "1": "11:00",
-        "2": "13:00"
       }
     },
     {
-      "stop_name": "MARCH WISBECH",
+      "stop_name": "SPALDING",
       "times": {
-        "0": "09:00",
-        "2": "11:00"
+        "0": "08:30",
+        "1": "09:30",
+        "2": "10:30",
+        "3": "11:30",
+        "4": "12:30",
+        "5": "13:30",
+        "6": "14:30",
+        "7": "15:30"
+      },
+      "saturday_times": {
+        "0": "09:00+PINCHBECK",
+        "1": "11:00+PINCHBECK",
+        "2": "13:00+PINCHBECK"
+      }
+    },
+    {
+      "stop_name": "MARCH WISBECH SAT",
+      "times": {
       },
       "saturday_times": {
         "0": "09:00",
-        "1": "12:30"
-      }
-    },
-    {
-      "stop_name": "GRANTHAM",
-      "times": {
-        "0": "11:00"
-      },
-      "saturday_times": { 
+        "1": "11:00"
       }
     }
   ]
