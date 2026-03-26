@@ -1,14 +1,5 @@
 [
     {
-      "stop_name": "ST IVES",
-      "times": {
-        "0": "NO MORE"
-      },
-      "saturday_times": {
-        "0": "10:00"
-      }
-    },
-    {
       "stop_name": "HUNTINGDON",
       "times": {
         "0": "08:00",
