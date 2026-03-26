@@ -1348,9 +1348,9 @@ async function loadTimetableData() {
         const marketLocations = [
             'BOURNE ALL',
             'HOLBEACH',
-            'SPALDING & PINCHBECK',
-            'OAKHAM',
-            'GRANTHAM',
+            'PINCHBECK',
+            'SPALDING',
+            'MARCH WISBECH SAT',
             'IBT'
         ];
 
