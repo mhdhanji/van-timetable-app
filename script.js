@@ -1348,7 +1348,7 @@ async function loadTimetableData() {
         const marketLocations = [
             'BOURNE',
             'BOURNE NORTH',
-            'HOLBEACH',
+            'HOLBEACH AND CROWLAND',
             'PINCHBECK',
             'SPALDING',
             'STAMFORD',
